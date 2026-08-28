@@ -61,7 +61,7 @@ export function GroupsPanel() {
   const activeGroup = selectedGroup ? userGroups[selectedGroup] : undefined;
 
   return (
-    <div className="panel">
+    <div className="panel panel-compact">
       <div className="panel-header">
         <h2>Groupes</h2>
       </div>

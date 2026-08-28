@@ -30,7 +30,7 @@ export function VlanPanel() {
   const list = Object.values(vlans).sort((a, b) => a.id - b.id);
 
   return (
-    <div className="panel">
+    <div className="panel panel-compact">
       <div className="panel-header">
         <h2>VLANs</h2>
       </div>

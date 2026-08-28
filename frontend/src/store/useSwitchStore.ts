@@ -47,6 +47,7 @@ interface SwitchStoreState {
   removeTaggedVlan: (portId: string, vlanId: number) => void;
 
   createUser: (username: string, group: string, passwordPlaintext: string) => { ok: boolean; error?: string };
+  updateUser: (username: string, group: string, passwordPlaintext: string) => { ok: boolean; error?: string };
   deleteUser: (username: string) => void;
   createGroup: (name: string) => { ok: boolean; error?: string };
   deleteGroup: (name: string) => void;
@@ -95,6 +96,19 @@ async function loadProfileData(
   } catch (err) {
     set({ status: { loading: false, error: (err as Error).message } });
   }
+}
+
+function validateGroupAndPassword(
+  group: string,
+  passwordPlaintext: string,
+  userGroups: Record<string, UserGroupApi>,
+): { ok: boolean; error?: string } {
+  const knownGroups = new Set<string>([...BUILTIN_GROUPS, ...Object.keys(userGroups)]);
+  if (!knownGroups.has(group)) return { ok: false, error: `Groupe '${group}' inconnu` };
+  if (!passwordPlaintext || !/^[\x21-\x7E]+$/.test(passwordPlaintext)) {
+    return { ok: false, error: 'Mot de passe invalide (caractères ASCII imprimables uniquement, sans espace)' };
+  }
+  return { ok: true };
 }
 
 export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
@@ -230,13 +244,24 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
     if (Object.keys(users).length >= MAX_LOCAL_USERS) {
       return { ok: false, error: `Maximum ${MAX_LOCAL_USERS} utilisateurs locaux` };
     }
-    const knownGroups = new Set<string>([...BUILTIN_GROUPS, ...Object.keys(userGroups)]);
-    if (!knownGroups.has(group)) return { ok: false, error: `Groupe '${group}' inconnu` };
-    if (!passwordPlaintext || !/^[\x21-\x7E]+$/.test(passwordPlaintext)) {
-      return { ok: false, error: 'Mot de passe invalide (caractères ASCII imprimables uniquement, sans espace)' };
-    }
+    const groupCheck = validateGroupAndPassword(group, passwordPlaintext, userGroups);
+    if (!groupCheck.ok) return groupCheck;
 
     set({ users: { ...users, [name]: { username: name, group, password_plaintext: passwordPlaintext } } });
+    void refreshCli(get, set);
+    return { ok: true };
+  },
+
+  updateUser: (username, group, passwordPlaintext) => {
+    const { users, userGroups } = get();
+    const existing = users[username];
+    if (!existing) return { ok: false, error: `L'utilisateur '${username}' n'existe pas` };
+    const groupCheck = validateGroupAndPassword(group, passwordPlaintext, userGroups);
+    if (!groupCheck.ok) return groupCheck;
+
+    // Un utilisateur appartient à un seul groupe à la fois : cette mise à jour
+    // remplace l'affectation précédente, elle ne s'y ajoute pas.
+    set({ users: { ...users, [username]: { ...existing, group, password_plaintext: passwordPlaintext } } });
     void refreshCli(get, set);
     return { ok: true };
   },

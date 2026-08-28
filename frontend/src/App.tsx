@@ -36,24 +36,30 @@ export default function App() {
       {status.error && !profile && <p className="field-error">{status.error}</p>}
 
       {profile && (
-        <main className="app-grid">
-          <div className="app-main">
+        <div className="app-body">
+          <nav className="app-rail" aria-label="Configurations (à venir)">
+            <div className="app-rail-item active" title="Configuration en cours">
+              <span className="app-rail-dot" />
+            </div>
+            <div className="app-rail-item app-rail-add" title="Nouvelle configuration (bientôt)">
+              +
+            </div>
+          </nav>
+
+          <main className="app-left">
             <SwitchPanel />
-          </div>
-          <div className="app-row-main">
-            <div className="app-row">
+            <div className="config-grid">
               <VlanPanel />
               <PortInspector />
-            </div>
-            <div className="app-row">
               <UsersPanel />
               <GroupsPanel />
             </div>
-            <div className="app-main">
-              <CliTerminal />
-            </div>
-          </div>
-        </main>
+          </main>
+
+          <aside className="app-right">
+            <CliTerminal />
+          </aside>
+        </div>
       )}
     </div>
   );

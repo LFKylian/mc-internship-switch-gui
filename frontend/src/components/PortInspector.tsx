@@ -32,7 +32,7 @@ export function PortInspector() {
 
   if (selectedPortIds.length === 0) {
     return (
-      <div className="panel">
+      <div className="panel panel-compact">
         <div className="panel-header">
           <h2>Configuration du port</h2>
         </div>
@@ -50,7 +50,7 @@ export function PortInspector() {
   };
 
   return (
-    <div className="panel">
+    <div className="panel panel-compact">
       <div className="panel-header">
         <h2>Configuration du port</h2>
         <p className="muted">{selectedPortIds.length} port(s) sélectionné(s) : {selectedPortIds.join(', ')}</p>

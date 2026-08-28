@@ -61,9 +61,11 @@ select {
 /* Layout */
 
 .app-shell {
-  max-width: 1360px;
-  margin: 0 auto;
-  padding: 24px 32px 64px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 20px;
+  overflow: hidden;
 }
 
 .app-header {
@@ -71,72 +73,135 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding-bottom: 24px;
-  margin-bottom: 24px;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
   border-bottom: 1px solid var(--border-1);
+  flex: 0 0 auto;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
 .brand-mark {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
   background: linear-gradient(135deg, var(--accent), #2b5fb0);
   flex-shrink: 0;
 }
 
 .brand h1 {
   margin: 0;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 
 .brand p {
-  margin: 2px 0 0;
+  margin: 1px 0 0;
+  font-size: 12px;
 }
 
-.app-grid {
+.app-body {
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
-  gap: 20px;
-  align-items: start;
+  grid-template-columns: 44px minmax(0, 1fr) 360px;
+  gap: 14px;
 }
 
-/* .app-col-main {
+/* Rail latéral — réservé pour la sélection/gestion de configurations multiples */
+
+.app-rail {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  align-items: center;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.app-rail-item {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border-1);
+  background: var(--surface-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 15px;
+  cursor: default;
+}
+
+.app-rail-item.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.app-rail-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.app-rail-add {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Colonne principale : schéma du switch (hauteur fixe) + grille 2x2 (remplit le reste) */
+
+.app-left {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
   min-width: 0;
-} */
-
-.app-row-main {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 400px;
-  gap: 20px;
 }
 
-.app-row {
+.config-grid {
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
-  gap: 20px;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 12px;
 }
 
-.app-main {
-  position: sticky;
+.config-grid .panel {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Colonne CLI : pleine hauteur, toujours visible */
+
+.app-right {
+  min-height: 0;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-@media (max-width: 820px) {
-  .app-grid,
-  .app-row-main,
-  .app-row,
-  .app-main {
-    position: static;
+@media (max-width: 1100px) {
+  .app-shell {
+    height: auto;
+    overflow: visible;
+  }
+  .app-body {
     grid-template-columns: 1fr;
+  }
+  .app-rail {
+    flex-direction: row;
+  }
+  .config-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
   }
 }
 
@@ -146,7 +211,7 @@ select {
   background: var(--surface-1);
   border: 1px solid var(--border-2);
   border-radius: var(--radius);
-  padding: 20px;
+  padding: 16px;
 }
 
 .panel-header {
@@ -154,16 +219,67 @@ select {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .panel-header h2 {
   margin: 0 0 4px;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-primary);
+}
+
+/* Densité réduite pour les panneaux de la grille 2x2 : tout doit tenir sans
+   faire défiler la page, seul le contenu interne d'une carte peut défiler. */
+
+.panel-compact {
+  padding: 12px 14px;
+  font-size: 12.5px;
+}
+
+.panel-compact .panel-header {
+  margin-bottom: 8px;
+}
+
+.panel-compact .panel-header h2 {
+  font-size: 11px;
+}
+
+.panel-compact .muted {
+  font-size: 11px;
+}
+
+.panel-compact .input {
+  padding: 5px 8px;
+  font-size: 12.5px;
+}
+
+.panel-compact .btn {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.panel-compact .field-label {
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.panel-compact .field-group {
+  margin-bottom: 10px;
+}
+
+.list-empty {
+  padding: 6px 0;
+}
+
+.panel-compact .vlan-list,
+.panel-compact .user-list,
+.panel-compact .rule-list,
+.panel-compact .tag-list {
+  max-height: none;
+  overflow-y: visible;
 }
 
 /* Switch faceplate */
@@ -173,12 +289,12 @@ select {
   background: var(--surface-2);
   border: 1px solid var(--border-1);
   border-radius: 6px;
-  padding: 12px 8px;
+  padding: 8px 8px;
 }
 
 .switch-faceplate {
   display: block;
-  height: 110px;
+  height: 90px;
   min-width: 100%;
 }
 
@@ -381,6 +497,8 @@ select {
 .terminal-panel {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .terminal {
@@ -389,10 +507,11 @@ select {
   border-radius: 6px;
   padding: 14px;
   margin: 0;
-  max-height: 480px;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.6;
   color: #8fe388;
 }
@@ -500,6 +619,28 @@ select {
 
 .user-row-implicit {
   opacity: 0.7;
+}
+
+.user-row-editable {
+  cursor: pointer;
+}
+
+.user-row-editable:hover {
+  border: 1px solid var(--border-1);
+}
+
+.user-row-editable.active {
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.form-actions .btn {
+  flex: 1;
 }
 
 .user-name {
