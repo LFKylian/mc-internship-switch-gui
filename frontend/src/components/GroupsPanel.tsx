@@ -66,7 +66,22 @@ export function GroupsPanel() {
         <h2>Groupes</h2>
       </div>
 
-      <div className="group-list">
+      <form className="vlan-form" onSubmit={submitGroup}>
+        <input
+          type="text"
+          placeholder="Nouveau groupe (ex. noc-readonly)"
+          value={newGroupName}
+          onChange={(e) => setNewGroupName(e.target.value)}
+          className="input input-name"
+          maxLength={32}
+        />
+        <button type="submit" className="btn btn-primary">
+          Créer
+        </button>
+      </form>
+      {groupError && <p className="field-error">{groupError}</p>}
+
+      <div className="group-list list-below-form">
         {BUILTIN_GROUPS.map((g) => (
           <span key={g} className="group-chip group-chip-builtin">
             {g}
@@ -94,21 +109,6 @@ export function GroupsPanel() {
           </button>
         ))}
       </div>
-
-      <form className="vlan-form" onSubmit={submitGroup}>
-        <input
-          type="text"
-          placeholder="Nouveau groupe (ex. noc-readonly)"
-          value={newGroupName}
-          onChange={(e) => setNewGroupName(e.target.value)}
-          className="input input-name"
-          maxLength={32}
-        />
-        <button type="submit" className="btn btn-primary">
-          Créer
-        </button>
-      </form>
-      {groupError && <p className="field-error">{groupError}</p>}
 
       {activeGroup && (
         <div className="port-detail">

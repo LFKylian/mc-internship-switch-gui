@@ -55,7 +55,7 @@ class AosCxCliGenerator(ConfigOutputGenerator):
             lines.append(f"    name {vlan.name}")
             if vlan.description:
                 lines.append(f"    description {vlan.description}")
-            lines.append("exit")
+            lines.append("    exit")
         return lines
 
     def _interface_lines(self, profile: SwitchProfile, state: SwitchState) -> list[str]:
@@ -87,7 +87,7 @@ class AosCxCliGenerator(ConfigOutputGenerator):
                     tagged = ",".join(str(v) for v in sorted(port.tagged_vlans))
                     lines.append(f"    vlan trunk allowed {tagged}")
 
-            lines.append("exit")
+            lines.append("    exit")
         return lines
 
     @staticmethod

@@ -60,35 +60,6 @@ export function UsersPanel() {
         <h2>Utilisateurs</h2>
       </div>
 
-      <ul className="user-list">
-        <li className="user-row user-row-implicit">
-          <span className="user-name">admin</span>
-          <span className="user-group muted">administrators (implicite)</span>
-        </li>
-        {userList.length === 0 && <li className="muted list-empty">Aucun utilisateur créé.</li>}
-        {userList.map((user) => (
-          <li
-            key={user.username}
-            className={`user-row user-row-editable${editingUsername === user.username ? ' active' : ''}`}
-            onClick={() => startEdit(user.username)}
-          >
-            <span className="user-name">{user.username}</span>
-            <span className="user-group muted">{user.group}</span>
-            <button
-              className="btn btn-ghost btn-icon"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (editingUsername === user.username) cancelEdit();
-                deleteUser(user.username);
-              }}
-              aria-label={`Supprimer ${user.username}`}
-            >
-              ×
-            </button>
-          </li>
-        ))}
-      </ul>
-
       <form className="stacked-form" onSubmit={submit}>
         <input
           type="text"
@@ -131,6 +102,35 @@ export function UsersPanel() {
         </div>
       </form>
       {error && <p className="field-error">{error}</p>}
+
+      <ul className="user-list list-below-form">
+        <li className="user-row user-row-implicit">
+          <span className="user-name">admin</span>
+          <span className="user-group muted">administrators (implicite)</span>
+        </li>
+        {userList.length === 0 && <li className="muted list-empty">Aucun utilisateur créé.</li>}
+        {userList.map((user) => (
+          <li
+            key={user.username}
+            className={`user-row user-row-editable${editingUsername === user.username ? ' active' : ''}`}
+            onClick={() => startEdit(user.username)}
+          >
+            <span className="user-name">{user.username}</span>
+            <span className="user-group muted">{user.group}</span>
+            <button
+              className="btn btn-ghost btn-icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (editingUsername === user.username) cancelEdit();
+                deleteUser(user.username);
+              }}
+              aria-label={`Supprimer ${user.username}`}
+            >
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
