@@ -7,7 +7,7 @@ from app.switch_profiles.base import SwitchProfile
 
 class AosCxCliGenerator(ConfigOutputGenerator):
     """
-    Traduit un état désiré complet (VLANs + ports + users/groups) en commandes CLI AOS-CX
+    Traduit un état désiré complet (VLANs + ports) en commandes CLI AOS-CX
     permettant de l'atteindre sur un switch en configuration usine (vide).
 
     Décrit l'état cible dans son intégralité — pas de calcul de diff — ce qui
@@ -19,9 +19,30 @@ class AosCxCliGenerator(ConfigOutputGenerator):
     def generate(self, profile: SwitchProfile, state: SwitchState) -> str:
         lines: list[str] = ["configure terminal"]
         lines.extend(self._vlan_lines(profile, state))
+        lines.extend(self._user_group_lines(state))
+        lines.extend(self._user_lines(state))
         lines.extend(self._interface_lines(profile, state))
         lines.append("exit")  # quitte le mode configuration globale
         return "\n".join(lines)
+
+    def _user_group_lines(self, state: SwitchState) -> list[str]:
+        lines: list[str] = []
+        groups = sorted(state.user_groups.values(), key=lambda g: g.name)
+        for group in groups:
+            lines.append(f"user-group {group.name}")
+            for rule in sorted(group.rules, key=lambda r: r.seq):
+                if rule.comment:
+                    lines.append(f"    {rule.seq} comment {rule.comment}")
+                lines.append(f'    {rule.seq} {rule.action.value} cli command "{rule.command_pattern}"')
+            lines.append("exit")
+        return lines
+
+    def _user_lines(self, state: SwitchState) -> list[str]:
+        lines: list[str] = []
+        users = sorted(state.users.values(), key=lambda u: u.username)
+        for user in users:
+            lines.append(f"user {user.username} group {user.group} password plaintext {user.password_plaintext}")
+        return lines
 
     def _vlan_lines(self, profile: SwitchProfile, state: SwitchState) -> list[str]:
         lines: list[str] = []
@@ -34,7 +55,7 @@ class AosCxCliGenerator(ConfigOutputGenerator):
             lines.append(f"    name {vlan.name}")
             if vlan.description:
                 lines.append(f"    description {vlan.description}")
-            lines.append("    exit")
+            lines.append("exit")
         return lines
 
     def _interface_lines(self, profile: SwitchProfile, state: SwitchState) -> list[str]:
@@ -66,7 +87,7 @@ class AosCxCliGenerator(ConfigOutputGenerator):
                     tagged = ",".join(str(v) for v in sorted(port.tagged_vlans))
                     lines.append(f"    vlan trunk allowed {tagged}")
 
-            lines.append("    exit")
+            lines.append("exit")
         return lines
 
     @staticmethod

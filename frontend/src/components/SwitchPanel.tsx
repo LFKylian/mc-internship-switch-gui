@@ -47,7 +47,7 @@ function Jack({ def }: { def: PortDefinition }) {
         </>
       )}
       {/* état du lien (haut-gauche) */}
-      <circle cx={3.5} cy={3.5} r={2} fill={isUp ? '#109200' : 'var(--danger)'} stroke="#05070b" strokeWidth={0.6} />
+      <circle cx={3.5} cy={3.5} r={2} fill={isUp ? '#22c55e' : 'var(--danger)'} stroke="#05070b" strokeWidth={0.6} />
       {/* mode trunk (bas-droit) */}
       {isTrunk && <circle cx={PORT_W - 4} cy={h - 4} r={2} fill="var(--accent)" stroke="#05070b" strokeWidth={0.6} />}
       <text x={PORT_W / 2} y={h + 10} className="port-label" textAnchor="middle">

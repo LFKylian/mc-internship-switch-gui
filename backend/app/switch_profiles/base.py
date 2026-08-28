@@ -41,7 +41,6 @@ class SwitchProfile(BaseModel):
     requires_no_routing: bool
     max_vlan_id: int = 4094
     reserved_vlan_ids: list[int] = Field(default_factory=lambda: [1])
-    max_user_created: int 
 
     def port_ids(self) -> set[str]:
         return {p.id for p in self.ports}

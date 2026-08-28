@@ -3,7 +3,15 @@ from __future__ import annotations
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from app.domain.users import (
+    BUILTIN_GROUPS,
+    MAX_LOCAL_USERS,
+    MAX_USER_GROUPS,
+    LocalUser,
+    UserGroup,
+)
 
 
 class PortMode(str, Enum):
@@ -51,33 +59,20 @@ class SwitchState(BaseModel):
 
     vlans: dict[int, Vlan] = Field(default_factory=dict)
     ports: dict[str, Port] = Field(default_factory=dict)
+    users: dict[str, LocalUser] = Field(default_factory=dict)
+    user_groups: dict[str, UserGroup] = Field(default_factory=dict)
 
+    @model_validator(mode="after")
+    def validate_users_and_groups(self) -> "SwitchState":
+        if len(self.users) > MAX_LOCAL_USERS:
+            raise ValueError(f"Maximum {MAX_LOCAL_USERS} utilisateurs locaux (hors admin).")
+        if len(self.user_groups) > MAX_USER_GROUPS:
+            raise ValueError(f"Maximum {MAX_USER_GROUPS} groupes définis par l'utilisateur.")
 
-# ===============================================================================
-# GESTION DES UTILISATEURS ET DES GROUPES
-# ===============================================================================
-
-class Group(BaseModel):
-    name: str = Field(..., min_length=1, max_length=32)
-    sub_command: str
-
-
-class User(BaseModel):
-    name: str = Field(..., min_length=1, max_length=32, pattern=r'^[A-Za-z0-9\-\.\_]+$')
-    password: str
-    group: Group
-
-    @field_validator('name')
-    @classmethod
-    def exclude_forbidden(cls, v: str) -> str:
-        forbidden_words =   ["admin", "root", "remote_user",
-                            "daemon", "bin", "sys", "sync", "proxy", "www-data", "backup", 
-                            "list", "irc", "gnats", "nobody", "systemd-bus-proxy", "sshd",
-                            "messagebus", "rpc", "systemd-journal-gateway", "systemd-journal-remote",
-                            "systemd-journalupload", "systemd-timesync", "systemd-coredump",
-                            "systemd-resolve", "rpcuser", "vagrant", "opsd", "rdanet", "_lldpd",
-                            "rdaadmin", "rdaweb", "docker_container", "tss"
-                            ]
-        if any(word == v.lower().replace(" ","") for word in forbidden_words):
-            raise ValueError("name contains forbidden words")
-        return v
+        known_groups = BUILTIN_GROUPS | set(self.user_groups.keys())
+        for user in self.users.values():
+            if user.group not in known_groups:
+                raise ValueError(
+                    f"L'utilisateur '{user.username}' référence le groupe inconnu '{user.group}'."
+                )
+        return self

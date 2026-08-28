@@ -66,7 +66,6 @@ def build_aruba_6100_profile(copper_count: int, model_name: str) -> SwitchProfil
         requires_no_routing=False,
         max_vlan_id=4094,
         reserved_vlan_ids=[1],
-        max_user_created=64,
     )
 
 

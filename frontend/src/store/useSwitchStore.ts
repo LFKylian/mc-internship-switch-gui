@@ -1,8 +1,11 @@
 import { create } from 'zustand';
-import type { Port, PortMode, SwitchProfile, Vlan } from '../types/api';
+import type { CommandRule, LocalUser, Port, PortMode, SwitchProfile, UserGroupApi, Vlan } from '../types/api';
+import { BUILTIN_GROUPS } from '../types/api';
 import { fetchProfile, fetchProfileList, generateCli } from '../api/client';
 
 const DEFAULT_PROFILE_ID = 'aruba-6100-48g-4sfp';
+const MAX_LOCAL_USERS = 63;
+const MAX_USER_GROUPS = 29;
 
 function defaultPort(id: string): Port {
   return { id, enabled: true, mode: 'access', native_vlan: 1, tagged_vlans: [] };
@@ -26,6 +29,8 @@ interface SwitchStoreState {
   profile: SwitchProfile | null;
   vlans: Record<number, Vlan>;
   ports: Record<string, Port>;
+  users: Record<string, LocalUser>;
+  userGroups: Record<string, UserGroupApi>;
   selectedPortIds: string[];
   cli: string;
   status: Status;
@@ -40,15 +45,22 @@ interface SwitchStoreState {
   setPortEnabled: (portId: string, enabled: boolean) => void;
   setPortDescription: (portId: string, description: string) => void;
   removeTaggedVlan: (portId: string, vlanId: number) => void;
+
+  createUser: (username: string, group: string, passwordPlaintext: string) => { ok: boolean; error?: string };
+  deleteUser: (username: string) => void;
+  createGroup: (name: string) => { ok: boolean; error?: string };
+  deleteGroup: (name: string) => void;
+  addGroupRule: (groupName: string, rule: CommandRule) => { ok: boolean; error?: string };
+  removeGroupRule: (groupName: string, seq: number) => void;
 }
 
 let cliRequestSeq = 0;
 
 async function refreshCli(get: () => SwitchStoreState, set: (partial: Partial<SwitchStoreState>) => void) {
   const seq = ++cliRequestSeq;
-  const { profileId, vlans, ports } = get();
+  const { profileId, vlans, ports, users, userGroups } = get();
   try {
-    const cli = await generateCli(profileId, { vlans, ports });
+    const cli = await generateCli(profileId, { vlans, ports, users, user_groups: userGroups });
     if (seq !== cliRequestSeq) return; // une requête plus récente a déjà été lancée entre-temps : on ignore ce résultat périmé
     set({ cli, status: { loading: false, error: null } });
   } catch (err) {
@@ -74,6 +86,8 @@ async function loadProfileData(
       profile,
       vlans: {},
       ports,
+      users: {},
+      userGroups: {},
       selectedPortIds: [],
       status: { loading: false, error: null },
     });
@@ -89,6 +103,8 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
   profile: null,
   vlans: {},
   ports: {},
+  users: {},
+  userGroups: {},
   selectedPortIds: [],
   cli: '',
   status: { loading: true, error: null },
@@ -201,6 +217,97 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
         [portId]: { ...current, tagged_vlans: current.tagged_vlans.filter((v) => v !== vlanId) },
       };
       return { ports };
+    });
+    void refreshCli(get, set);
+  },
+
+  createUser: (username, group, passwordPlaintext) => {
+    const { users, userGroups } = get();
+    const name = username.trim();
+    if (!name) return { ok: false, error: "Nom d'utilisateur requis" };
+    if (name === 'admin') return { ok: false, error: "'admin' est implicite : inutile de le recréer" };
+    if (users[name]) return { ok: false, error: `L'utilisateur '${name}' existe déjà` };
+    if (Object.keys(users).length >= MAX_LOCAL_USERS) {
+      return { ok: false, error: `Maximum ${MAX_LOCAL_USERS} utilisateurs locaux` };
+    }
+    const knownGroups = new Set<string>([...BUILTIN_GROUPS, ...Object.keys(userGroups)]);
+    if (!knownGroups.has(group)) return { ok: false, error: `Groupe '${group}' inconnu` };
+    if (!passwordPlaintext || !/^[\x21-\x7E]+$/.test(passwordPlaintext)) {
+      return { ok: false, error: 'Mot de passe invalide (caractères ASCII imprimables uniquement, sans espace)' };
+    }
+
+    set({ users: { ...users, [name]: { username: name, group, password_plaintext: passwordPlaintext } } });
+    void refreshCli(get, set);
+    return { ok: true };
+  },
+
+  deleteUser: (username) => {
+    set((state) => {
+      const users = { ...state.users };
+      delete users[username];
+      return { users };
+    });
+    void refreshCli(get, set);
+  },
+
+  createGroup: (name) => {
+    const { userGroups } = get();
+    const trimmed = name.trim();
+    if (!trimmed) return { ok: false, error: 'Nom de groupe requis' };
+    if ((BUILTIN_GROUPS as readonly string[]).includes(trimmed)) {
+      return { ok: false, error: `'${trimmed}' est un nom de groupe réservé` };
+    }
+    if (userGroups[trimmed]) return { ok: false, error: `Le groupe '${trimmed}' existe déjà` };
+    if (Object.keys(userGroups).length >= MAX_USER_GROUPS) {
+      return { ok: false, error: `Maximum ${MAX_USER_GROUPS} groupes définis` };
+    }
+
+    set({ userGroups: { ...userGroups, [trimmed]: { name: trimmed, rules: [] } } });
+    void refreshCli(get, set);
+    return { ok: true };
+  },
+
+  deleteGroup: (name) => {
+    set((state) => {
+      const userGroups = { ...state.userGroups };
+      delete userGroups[name];
+      // Les utilisateurs affectés à ce groupe perdent leur affectation : on les
+      // retombe sur 'operators' plutôt que de laisser une référence invalide.
+      const users = { ...state.users };
+      Object.values(users).forEach((user) => {
+        if (user.group === name) {
+          users[user.username] = { ...user, group: 'operators' };
+        }
+      });
+      return { userGroups, users };
+    });
+    void refreshCli(get, set);
+  },
+
+  addGroupRule: (groupName, rule) => {
+    const { userGroups } = get();
+    const group = userGroups[groupName];
+    if (!group) return { ok: false, error: 'Groupe introuvable' };
+    if (group.rules.some((r) => r.seq === rule.seq)) {
+      return { ok: false, error: `La séquence ${rule.seq} est déjà utilisée dans ce groupe` };
+    }
+    if (!rule.command_pattern.trim()) return { ok: false, error: 'Motif de commande requis' };
+
+    const rules = [...group.rules, rule].sort((a, b) => a.seq - b.seq);
+    set({ userGroups: { ...userGroups, [groupName]: { ...group, rules } } });
+    void refreshCli(get, set);
+    return { ok: true };
+  },
+
+  removeGroupRule: (groupName, seq) => {
+    set((state) => {
+      const group = state.userGroups[groupName];
+      if (!group) return state;
+      const userGroups = {
+        ...state.userGroups,
+        [groupName]: { ...group, rules: group.rules.filter((r) => r.seq !== seq) },
+      };
+      return { userGroups };
     });
     void refreshCli(get, set);
   },

@@ -41,7 +41,30 @@ export interface Port {
   description?: string | null;
 }
 
+export interface CommandRule {
+  seq: number;
+  action: 'permit' | 'deny';
+  command_pattern: string;
+  comment?: string | null;
+}
+
+export const BUILTIN_GROUPS = ['administrators', 'operators', 'auditors'] as const;
+export type BuiltinGroup = (typeof BUILTIN_GROUPS)[number];
+
+export interface UserGroupApi {
+  name: string;
+  rules: CommandRule[];
+}
+
+export interface LocalUser {
+  username: string;
+  group: string;
+  password_plaintext: string;
+}
+
 export interface SwitchState {
   vlans: Record<number, Vlan>;
   ports: Record<string, Port>;
+  users: Record<string, LocalUser>;
+  user_groups: Record<string, UserGroupApi>;
 }
