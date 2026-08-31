@@ -38,25 +38,20 @@ def get_config_repo(db: Session = Depends(get_db)) -> ConfigurationRepository:
     return PostgresConfigurationRepository(db)
 
 
-@app.get("/api/profiles")
-def list_profiles() -> dict[str, str]:
-    return {key: profile.model for key, profile in PROFILES.items()}
-
-
-@app.get("/api/profiles/{profile_id}")
-def get_profile(profile_id: str) -> SwitchProfile:
+def _resolve_profile(profile_id: str) -> SwitchProfile:
     profile = PROFILES.get(profile_id)
     if profile is None:
         raise HTTPException(status_code=404, detail="Profil inconnu")
     return profile
 
 
-@app.post("/api/profiles/{profile_id}/generate-cli")
-def generate_cli(profile_id: str, state: SwitchState) -> dict[str, str]:
-    profile = PROFILES.get(profile_id)
-    if profile is None:
-        raise HTTPException(status_code=404, detail="Profil inconnu")
-
+def _validate_state_against_profile(profile: SwitchProfile, state: SwitchState) -> None:
+    """
+    Garde-fou d'intégrité partagé entre génération CLI et sauvegarde : un état
+    désiré ne doit jamais référencer des ports absents du profil déclaré.
+    Centralisé ici pour que save_configuration et generate_cli ne divergent
+    pas silencieusement sur cette règle.
+    """
     unknown_ports = set(state.ports) - profile.port_ids()
     if unknown_ports:
         raise HTTPException(
@@ -64,6 +59,21 @@ def generate_cli(profile_id: str, state: SwitchState) -> dict[str, str]:
             detail=f"Ports inconnus pour ce profil : {sorted(unknown_ports)}",
         )
 
+
+@app.get("/api/profiles")
+def list_profiles() -> dict[str, str]:
+    return {key: profile.model for key, profile in PROFILES.items()}
+
+
+@app.get("/api/profiles/{profile_id}")
+def get_profile(profile_id: str) -> SwitchProfile:
+    return _resolve_profile(profile_id)
+
+
+@app.post("/api/profiles/{profile_id}/generate-cli")
+def generate_cli(profile_id: str, state: SwitchState) -> dict[str, str]:
+    profile = _resolve_profile(profile_id)
+    _validate_state_against_profile(profile, state)
     generator = GENERATORS[profile.vendor_os]
     return {"cli": generator.generate(profile, state)}
 
@@ -75,6 +85,8 @@ def save_configuration(
     config: SavedConfiguration,
     repo: ConfigurationRepository = Depends(get_config_repo),
 ):
+    profile = _resolve_profile(config.profile_id)
+    _validate_state_against_profile(profile, config.state)
     return repo.save(config)
 
 
@@ -102,3 +114,5 @@ def delete_configuration(
     success = repo.delete(config_id)
     if not success:
         raise HTTPException(status_code=404, detail="Configuration non trouvée")
+
+

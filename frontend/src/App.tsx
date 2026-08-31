@@ -4,7 +4,9 @@ import { SwitchPanel } from './components/SwitchPanel';
 import { VlanPanel } from './components/VlanPanel';
 import { PortInspector } from './components/PortInspector';
 import { CliTerminal } from './components/CliTerminal';
-import { ProfileSelector } from './components/ProfileSelector';
+import { ProfileBadge } from './components/ProfileBadge';
+import { SaveControl } from './components/SaveControl';
+import { ConfigurationsRail } from './components/ConfigurationsRail';
 import { UsersPanel } from './components/UsersPanel';
 import { GroupsPanel } from './components/GroupsPanel';
 
@@ -28,7 +30,8 @@ export default function App() {
           </div>
         </div>
         <div className="header-actions">
-          <ProfileSelector />
+          <ProfileBadge />
+          <SaveControl />
         </div>
       </header>
 
@@ -37,14 +40,7 @@ export default function App() {
 
       {profile && (
         <div className="app-body">
-          <nav className="app-rail" aria-label="Configurations (à venir)">
-            <div className="app-rail-item active" title="Configuration en cours">
-              <span className="app-rail-dot" />
-            </div>
-            <div className="app-rail-item app-rail-add" title="Nouvelle configuration (bientôt)">
-              +
-            </div>
-          </nav>
+          <ConfigurationsRail />
 
           <main className="app-left">
             <SwitchPanel />
@@ -64,3 +60,6 @@ export default function App() {
     </div>
   );
 }
+
+
+

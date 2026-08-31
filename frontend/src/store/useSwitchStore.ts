@@ -1,7 +1,25 @@
 import { create } from 'zustand';
-import type { CommandRule, LocalUser, Port, PortMode, SwitchProfile, UserGroupApi, Vlan } from '../types/api';
+import type {
+  CommandRule,
+  LocalUser,
+  Port,
+  PortMode,
+  SavedConfiguration,
+  SwitchProfile,
+  SwitchState,
+  UserGroupApi,
+  Vlan,
+} from '../types/api';
 import { BUILTIN_GROUPS } from '../types/api';
-import { fetchProfile, fetchProfileList, generateCli } from '../api/client';
+import {
+  deleteConfiguration as apiDeleteConfiguration,
+  fetchConfiguration,
+  fetchConfigurations,
+  fetchProfile,
+  fetchProfileList,
+  generateCli,
+  saveConfiguration as apiSaveConfiguration,
+} from '../api/client';
 
 const DEFAULT_PROFILE_ID = 'aruba-6100-48g-4sfp';
 const MAX_LOCAL_USERS = 63;
@@ -23,6 +41,11 @@ interface Status {
   error: string | null;
 }
 
+interface SaveStatus {
+  saving: boolean;
+  error: string | null;
+}
+
 interface SwitchStoreState {
   profileId: string;
   availableProfiles: Record<string, string>; // id -> nom du modèle
@@ -35,8 +58,21 @@ interface SwitchStoreState {
   cli: string;
   status: Status;
 
+  // Configuration actuellement chargée. Le profil est immuable une fois une
+  // configuration démarrée : on ne le change plus via un sélecteur libre —
+  // seule startNewConfiguration() peut en choisir un, et uniquement pour
+  // repartir d'une configuration vierge.
+  configId: number | null;
+  configName: string;
+  savedConfigurations: SavedConfiguration[];
+  saveStatus: SaveStatus;
+
   init: () => Promise<void>;
-  selectProfile: (profileId: string) => Promise<void>;
+  startNewConfiguration: (profileId: string) => Promise<void>;
+  loadConfigurationList: () => Promise<void>;
+  loadConfiguration: (id: number) => Promise<void>;
+  saveCurrentConfiguration: (name: string) => Promise<{ ok: boolean; error?: string }>;
+  deleteSavedConfiguration: (id: number) => Promise<void>;
   togglePortSelection: (portId: string, additive: boolean) => void;
   clearSelection: () => void;
   createVlan: (id: number, name: string) => { ok: boolean; error?: string };
@@ -55,13 +91,22 @@ interface SwitchStoreState {
   removeGroupRule: (groupName: string, seq: number) => void;
 }
 
+function buildSwitchState(state: SwitchStoreState): SwitchState {
+  return {
+    vlans: state.vlans,
+    ports: state.ports,
+    users: state.users,
+    user_groups: state.userGroups,
+  };
+}
+
 let cliRequestSeq = 0;
 
 async function refreshCli(get: () => SwitchStoreState, set: (partial: Partial<SwitchStoreState>) => void) {
   const seq = ++cliRequestSeq;
-  const { profileId, vlans, ports, users, userGroups } = get();
+  const state = get();
   try {
-    const cli = await generateCli(profileId, { vlans, ports, users, user_groups: userGroups });
+    const cli = await generateCli(state.profileId, buildSwitchState(state));
     if (seq !== cliRequestSeq) return; // une requête plus récente a déjà été lancée entre-temps : on ignore ce résultat périmé
     set({ cli, status: { loading: false, error: null } });
   } catch (err) {
@@ -90,6 +135,8 @@ async function loadProfileData(
       users: {},
       userGroups: {},
       selectedPortIds: [],
+      configId: null,
+      configName: '',
       status: { loading: false, error: null },
     });
     await refreshCli(get, set);
@@ -122,6 +169,10 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
   selectedPortIds: [],
   cli: '',
   status: { loading: true, error: null },
+  configId: null,
+  configName: '',
+  savedConfigurations: [],
+  saveStatus: { saving: false, error: null },
 
   init: async () => {
     try {
@@ -132,11 +183,82 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
       return;
     }
     await loadProfileData(get().profileId, set, get);
+    void get().loadConfigurationList();
   },
 
-  selectProfile: async (profileId) => {
-    if (profileId === get().profileId) return;
+  // Point d'entrée unique pour choisir un profil : repart toujours d'une
+  // configuration vierge. C'est la seule façon de changer de modèle de
+  // switch — il n'existe plus de sélecteur libre une fois une configuration
+  // en cours (cf. commentaire sur configId dans l'interface).
+  startNewConfiguration: async (profileId) => {
     await loadProfileData(profileId, set, get);
+  },
+
+  loadConfigurationList: async () => {
+    try {
+      const savedConfigurations = await fetchConfigurations();
+      set({ savedConfigurations });
+    } catch (err) {
+      set({ saveStatus: { saving: false, error: (err as Error).message } });
+    }
+  },
+
+  loadConfiguration: async (id) => {
+    set({ status: { loading: true, error: null } });
+    try {
+      const saved = await fetchConfiguration(id);
+      // Chaque configuration sauvegardée porte le profil avec lequel elle a
+      // été créée (immuable) : on ne le redemande pas, on le restaure.
+      if (saved.profile_id !== get().profileId) {
+        await loadProfileData(saved.profile_id, set, get);
+      }
+      set({
+        vlans: saved.state.vlans,
+        ports: saved.state.ports,
+        users: saved.state.users,
+        userGroups: saved.state.user_groups,
+        selectedPortIds: [],
+        configId: saved.id ?? null,
+        configName: saved.name,
+        status: { loading: false, error: null },
+      });
+      await refreshCli(get, set);
+    } catch (err) {
+      set({ status: { loading: false, error: (err as Error).message } });
+    }
+  },
+
+  saveCurrentConfiguration: async (name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return { ok: false, error: 'Nom de configuration requis' };
+
+    set({ saveStatus: { saving: true, error: null } });
+    try {
+      const state = get();
+      const saved = await apiSaveConfiguration({
+        id: state.configId ?? undefined,
+        name: trimmed,
+        profile_id: state.profileId,
+        state: buildSwitchState(state),
+      });
+      set({ configId: saved.id ?? null, configName: saved.name, saveStatus: { saving: false, error: null } });
+      await get().loadConfigurationList();
+      return { ok: true };
+    } catch (err) {
+      const error = (err as Error).message;
+      set({ saveStatus: { saving: false, error } });
+      return { ok: false, error };
+    }
+  },
+
+  deleteSavedConfiguration: async (id) => {
+    try {
+      await apiDeleteConfiguration(id);
+      if (get().configId === id) set({ configId: null, configName: '' });
+      await get().loadConfigurationList();
+    } catch (err) {
+      set({ saveStatus: { saving: false, error: (err as Error).message } });
+    }
   },
 
   togglePortSelection: (portId, additive) =>
@@ -339,3 +461,6 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
 }));
 
 export { vlanColor };
+
+
+

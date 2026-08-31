@@ -68,3 +68,16 @@ export interface SwitchState {
   users: Record<string, LocalUser>;
   user_groups: Record<string, UserGroupApi>;
 }
+
+// Miroir de backend/app/domain/configurations.py
+export interface SavedConfiguration {
+  id?: number;
+  name: string;
+  profile_id: string;
+  state: SwitchState;
+  created_at?: string;
+  updated_at?: string;
+}
+
+
+

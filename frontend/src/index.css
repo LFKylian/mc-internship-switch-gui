@@ -113,7 +113,7 @@ select {
   gap: 14px;
 }
 
-/* Rail latéral — réservé pour la sélection/gestion de configurations multiples */
+/* Rail latéral — configurations sauvegardées */
 
 .app-rail {
   display: flex;
@@ -121,9 +121,19 @@ select {
   align-items: center;
   gap: 10px;
   padding-top: 4px;
+  min-height: 0;
+}
+
+.app-rail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .app-rail-item {
+  position: relative;
   width: 32px;
   height: 32px;
   border-radius: 8px;
@@ -134,25 +144,84 @@ select {
   justify-content: center;
   color: var(--text-muted);
   font-size: 15px;
-  cursor: default;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.app-rail-item:hover {
+  border-color: var(--accent);
 }
 
 .app-rail-item.active {
   border-color: var(--accent);
   background: var(--accent-soft);
+  color: var(--accent);
 }
 
-.app-rail-dot {
-  width: 8px;
-  height: 8px;
+.app-rail-initial {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.app-rail-remove {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--surface-2);
+  border: 1px solid var(--border-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.app-rail-item:hover .app-rail-remove {
+  opacity: 1;
+}
+
+.app-rail-remove:hover {
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
 .app-rail-add {
   color: var(--text-muted);
-  cursor: not-allowed;
-  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.app-rail-new-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 32px;
+}
+
+.app-rail-new-option {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border-1);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 9px;
+  line-height: 1.1;
+  padding: 2px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-rail-new-option:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* Colonne principale : schéma du switch (hauteur fixe) + grille 2x2 (remplit le reste) */
@@ -522,21 +591,42 @@ select {
   margin-top: 10px;
 }
 
-/* Profile selector */
+/* Header : badge de profil (lecture seule) + sauvegarde */
 
 .header-actions {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 20px;
 }
 
-.profile-selector {
+.profile-badge {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-width: 220px;
+  gap: 2px;
 }
 
-.profile-selector .field-label {
+.profile-badge .field-label {
   margin-bottom: 0;
+}
+
+.profile-badge-value {
+  font-size: 12.5px;
+  color: var(--text-primary);
+}
+
+.save-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.save-control .input {
+  width: 220px;
+}
+
+.save-control .field-error {
+  margin: 0 0 0 4px;
 }
 
 /* Port detail (single selection) */
@@ -767,3 +857,5 @@ select {
 .rule-pattern-input {
   flex: 1;
 }
+
+
