@@ -5,6 +5,7 @@ export function ConfigurationsRail() {
   const savedConfigurations = useSwitchStore((s) => s.savedConfigurations);
   const configId = useSwitchStore((s) => s.configId);
   const availableProfiles = useSwitchStore((s) => s.availableProfiles);
+  const hasUnsavedChanges = useSwitchStore((s) => s.hasUnsavedChanges);
   const loadConfiguration = useSwitchStore((s) => s.loadConfiguration);
   const deleteSavedConfiguration = useSwitchStore((s) => s.deleteSavedConfiguration);
   const startNewConfiguration = useSwitchStore((s) => s.startNewConfiguration);
@@ -21,20 +22,16 @@ export function ConfigurationsRail() {
             key={cfg.id}
             className={`app-rail-item${configId === cfg.id ? ' active' : ''}`}
             title={`${cfg.name} — ${cfg.profile_id}`}
-            onClick={() => cfg.id !== undefined && void loadConfiguration(cfg.id)}
+            onClick={() => {
+              if (hasUnsavedChanges() && !window.confirm(
+                'Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter cette configuration ?'
+              )) {
+                return;
+              }
+              cfg.id !== undefined && void loadConfiguration(cfg.id);
+            }}
           >
             <span className="app-rail-initial">{cfg.name.charAt(0).toUpperCase()}</span>
-            <span
-              className="app-rail-remove"
-              role="button"
-              aria-label={`Supprimer ${cfg.name}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (cfg.id !== undefined) void deleteSavedConfiguration(cfg.id);
-              }}
-            >
-              ×
-            </span>
           </button>
         ))}
       </div>
@@ -47,6 +44,11 @@ export function ConfigurationsRail() {
               className="app-rail-new-option"
               title={model}
               onClick={() => {
+                if (hasUnsavedChanges() && !window.confirm(
+                  'Vous avez des modifications non sauvegardées. Voulez-vous vraiment créer une nouvelle configuration ?'
+                )) {
+                  return;
+                }
                 void startNewConfiguration(id);
                 setCreating(false);
               }}

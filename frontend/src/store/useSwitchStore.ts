@@ -67,6 +67,9 @@ interface SwitchStoreState {
   savedConfigurations: SavedConfiguration[];
   saveStatus: SaveStatus;
 
+  // Snapshot de l'état au moment du dernier chargement/sauvegarde pour détecter les modifications non sauvegardées
+  savedSnapshot: string | null;
+
   init: () => Promise<void>;
   startNewConfiguration: (profileId: string) => Promise<void>;
   loadConfigurationList: () => Promise<void>;
@@ -173,6 +176,13 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
   configName: '',
   savedConfigurations: [],
   saveStatus: { saving: false, error: null },
+  savedSnapshot: null,
+
+  hasUnsavedChanges: () => {
+    const state = get();
+    if (state.savedSnapshot === null) return false;
+    return state.savedSnapshot !== JSON.stringify(buildSwitchState(state));
+  },
 
   init: async () => {
     try {
@@ -192,6 +202,8 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
   // en cours (cf. commentaire sur configId dans l'interface).
   startNewConfiguration: async (profileId) => {
     await loadProfileData(profileId, set, get);
+    // Mise à jour du snapshot après chargement d'une nouvelle configuration vierge
+    set({ savedSnapshot: JSON.stringify(buildSwitchState(get())) });
   },
 
   loadConfigurationList: async () => {
@@ -221,6 +233,7 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
         configId: saved.id ?? null,
         configName: saved.name,
         status: { loading: false, error: null },
+        savedSnapshot: JSON.stringify(saved.state),
       });
       await refreshCli(get, set);
     } catch (err) {
@@ -241,7 +254,12 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
         profile_id: state.profileId,
         state: buildSwitchState(state),
       });
-      set({ configId: saved.id ?? null, configName: saved.name, saveStatus: { saving: false, error: null } });
+      set({
+        configId: saved.id ?? null,
+        configName: saved.name,
+        saveStatus: { saving: false, error: null },
+        savedSnapshot: JSON.stringify(buildSwitchState(state)),
+      });
       await get().loadConfigurationList();
       return { ok: true };
     } catch (err) {

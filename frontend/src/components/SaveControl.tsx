@@ -6,6 +6,7 @@ export function SaveControl() {
   const configName = useSwitchStore((s) => s.configName);
   const saveStatus = useSwitchStore((s) => s.saveStatus);
   const saveCurrentConfiguration = useSwitchStore((s) => s.saveCurrentConfiguration);
+  const deleteSavedConfiguration = useSwitchStore((s) => s.deleteSavedConfiguration);
 
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState(configName);
@@ -58,6 +59,19 @@ export function SaveControl() {
       <button type="button" className="btn btn-ghost" onClick={() => setEditingName(true)}>
         Renommer
       </button>
+      {configId !== null && (
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => {
+            if (window.confirm(`Voulez-vous vraiment supprimer la configuration « ${configName} » ?`)) {
+              void deleteSavedConfiguration(configId);
+            }
+          }}
+        >
+          Supprimer
+        </button>
+      )}
       {saveStatus.error && <p className="field-error">{saveStatus.error}</p>}
     </div>
   );
