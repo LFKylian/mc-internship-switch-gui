@@ -1,13 +1,13 @@
-from __future__ import annotations
-
 from typing import Annotated
-
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from netmiko import NetmikoTimeoutException, NetmikoAuthenticationException
 from sqlalchemy.orm import Session
 
 from app.cli_generators.aoscx import AosCxCliGenerator
 from app.cli_generators.base import ConfigOutputGenerator
+from app.config_pushers.factory import PusherFactory
+from app.domain.push import PushRequest
 from app.database import get_db
 from app.domain.configurations import ConfigurationRepository, SavedConfiguration
 from app.domain.models import SwitchState
@@ -59,6 +59,8 @@ def _validate_state_against_profile(profile: SwitchProfile, state: SwitchState) 
             detail=f"Ports inconnus pour ce profil : {sorted(unknown_ports)}",
         )
 
+
+# --- Routes API ---
 
 @app.get("/api/profiles")
 def list_profiles() -> dict[str, str]:
@@ -116,3 +118,36 @@ def delete_configuration(
         raise HTTPException(status_code=404, detail="Configuration non trouvée")
 
 
+# --- API Push Configurations ---
+
+@app.post("/api/profiles/{profile_id}/push-configuration/{modal}", status_code=status.HTTP_202_ACCEPTED)
+def push_configuration(profile_id: str, modal: str, payload: PushRequest) -> dict[str, str]:
+    # 0. Validation de la cohérence entre l'URL et le payload
+    if payload.pushing_device_info.method != modal:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Incohérence au niveau du mode de connexion pour le déploiement."
+        )
+
+    profile = _resolve_profile(profile_id)
+    _validate_state_against_profile(profile, payload.state)
+    
+    # 1. Génération des commandes CLI
+    generator = GENERATORS[profile.vendor_os]
+    cli_text = generator.generate(profile, payload.state)
+    command_list = [line.strip() for line in cli_text.splitlines() if line.strip() and not line.startswith("!")]
+
+    # 2. Récupération du pusher via la factory
+    try:
+        pusher = PusherFactory.get(modal)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    # 3. Envoi via Netmiko avec gestion des exceptions
+    try:
+        output = pusher.push_config(payload.pushing_device_info, command_list)
+        return {"status": "success", "output": output}
+    except (NetmikoTimeoutException, NetmikoAuthenticationException):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur d'authentification ou de connexion SSH")
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Échec de l'application de la configuration")

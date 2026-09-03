@@ -1,4 +1,4 @@
-// Miroir des modèles Pydantic (backend/app/domain/models.py et switch_profiles/base.py).
+// Miroir des modèles Pydantic (backend/app/domain/ et switch_profiles/base.py).
 // Les noms de champs snake_case sont conservés à l'identique pour éviter toute
 // couche de mapping — le JSON échangé avec l'API est utilisé tel quel.
 
@@ -80,4 +80,22 @@ export interface SavedConfiguration {
 }
 
 
+export interface BaseDeviceInfo {
+  method: string,
+  host: string;
+  username: string;
+  password: string;
+}
 
+export interface SSHDeviceInfo extends BaseDeviceInfo {
+  device_type: string;
+  port?: number;
+  secret?: string;
+}
+
+export type DeviceInfoUnion = SSHDeviceInfo | BaseDeviceInfo;
+
+export interface PushRequest {
+  state: SwitchState;
+  pushing_device_info: DeviceInfoUnion;
+}

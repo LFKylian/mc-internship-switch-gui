@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type {
+  BaseDeviceInfo,
   CommandRule,
   LocalUser,
   Port,
@@ -19,6 +20,7 @@ import {
   fetchProfileList,
   generateCli,
   saveConfiguration as apiSaveConfiguration,
+  pushConfiguration as apiPushConfiguration,
 } from '../api/client';
 
 const DEFAULT_PROFILE_ID = 'aruba-6100-48g-4sfp';
@@ -70,12 +72,16 @@ interface SwitchStoreState {
   // Snapshot de l'état au moment du dernier chargement/sauvegarde pour détecter les modifications non sauvegardées
   savedSnapshot: string | null;
 
+  pushStatus: { pushing: boolean; error: string | null; output: string | null };
+  isSshModalOpen: boolean;
+  
   init: () => Promise<void>;
   startNewConfiguration: (profileId: string) => Promise<void>;
   loadConfigurationList: () => Promise<void>;
   loadConfiguration: (id: number) => Promise<void>;
   saveCurrentConfiguration: (name: string) => Promise<{ ok: boolean; error?: string }>;
   deleteSavedConfiguration: (id: number) => Promise<void>;
+  hasUnsavedChanges: () => boolean;
   togglePortSelection: (portId: string, additive: boolean) => void;
   clearSelection: () => void;
   createVlan: (id: number, name: string) => { ok: boolean; error?: string };
@@ -84,7 +90,7 @@ interface SwitchStoreState {
   setPortEnabled: (portId: string, enabled: boolean) => void;
   setPortDescription: (portId: string, description: string) => void;
   removeTaggedVlan: (portId: string, vlanId: number) => void;
-
+  
   createUser: (username: string, group: string, passwordPlaintext: string) => { ok: boolean; error?: string };
   updateUser: (username: string, group: string, passwordPlaintext: string) => { ok: boolean; error?: string };
   deleteUser: (username: string) => void;
@@ -92,6 +98,9 @@ interface SwitchStoreState {
   deleteGroup: (name: string) => void;
   addGroupRule: (groupName: string, rule: CommandRule) => { ok: boolean; error?: string };
   removeGroupRule: (groupName: string, seq: number) => void;
+
+  pushConfiguration: (modal:string, pushingDeviceInfo: BaseDeviceInfo) => Promise<boolean>;
+  setIsSshModalOpen: (open: boolean) => void;
 }
 
 function buildSwitchState(state: SwitchStoreState): SwitchState {
@@ -177,13 +186,9 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
   savedConfigurations: [],
   saveStatus: { saving: false, error: null },
   savedSnapshot: null,
-
-  hasUnsavedChanges: () => {
-    const state = get();
-    if (state.savedSnapshot === null) return false;
-    return state.savedSnapshot !== JSON.stringify(buildSwitchState(state));
-  },
-
+  pushStatus: { pushing: false, error: null, output: null },
+  isSshModalOpen: false,
+  
   init: async () => {
     try {
       const availableProfiles = await fetchProfileList();
@@ -195,7 +200,7 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
     await loadProfileData(get().profileId, set, get);
     void get().loadConfigurationList();
   },
-
+  
   // Point d'entrée unique pour choisir un profil : repart toujours d'une
   // configuration vierge. C'est la seule façon de changer de modèle de
   // switch — il n'existe plus de sélecteur libre une fois une configuration
@@ -205,7 +210,7 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
     // Mise à jour du snapshot après chargement d'une nouvelle configuration vierge
     set({ savedSnapshot: JSON.stringify(buildSwitchState(get())) });
   },
-
+  
   loadConfigurationList: async () => {
     try {
       const savedConfigurations = await fetchConfigurations();
@@ -214,7 +219,7 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
       set({ saveStatus: { saving: false, error: (err as Error).message } });
     }
   },
-
+  
   loadConfiguration: async (id) => {
     set({ status: { loading: true, error: null } });
     try {
@@ -240,11 +245,11 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
       set({ status: { loading: false, error: (err as Error).message } });
     }
   },
-
+  
   saveCurrentConfiguration: async (name) => {
     const trimmed = name.trim();
     if (!trimmed) return { ok: false, error: 'Nom de configuration requis' };
-
+    
     set({ saveStatus: { saving: true, error: null } });
     try {
       const state = get();
@@ -278,18 +283,24 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
       set({ saveStatus: { saving: false, error: (err as Error).message } });
     }
   },
-
+  
+  hasUnsavedChanges: () => {
+    const state = get();
+    if (state.savedSnapshot === null) return false;
+    return state.savedSnapshot !== JSON.stringify(buildSwitchState(state));
+  },
+  
   togglePortSelection: (portId, additive) =>
     set((state) => {
       if (!additive) return { selectedPortIds: [portId] };
       const exists = state.selectedPortIds.includes(portId);
       return {
         selectedPortIds: exists
-          ? state.selectedPortIds.filter((id) => id !== portId)
-          : [...state.selectedPortIds, portId],
+        ? state.selectedPortIds.filter((id) => id !== portId)
+        : [...state.selectedPortIds, portId],
       };
     }),
-
+    
   clearSelection: () => set({ selectedPortIds: [] }),
 
   createVlan: (id, name) => {
@@ -476,6 +487,46 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
     });
     void refreshCli(get, set);
   },
+
+  pushConfiguration: async (modal: string, pushingDeviceInfo: BaseDeviceInfo) => {
+    const state = get();
+
+    if (!state.profileId) {
+      set({ pushStatus: { pushing: false, error: 'Profil non trouvé', output: null } });
+      return false;
+    }
+
+    set({ pushStatus: { pushing: true, error: null, output: null } });
+
+    try {
+      const output = await apiPushConfiguration(state.profileId, modal, {
+        state: buildSwitchState(state),
+        pushing_device_info: pushingDeviceInfo,
+      });
+
+      set({
+        pushStatus: {
+          pushing: false,
+          error: null,
+          output: output,
+        },
+      });
+      return true;
+
+    } catch (err: any) {
+      set({
+        pushStatus: {
+          pushing: false,
+          error: err.message || 'Erreur lors du déploiement',
+          output: null,
+        },
+      });
+      return false;
+    }
+  },
+
+  setIsSshModalOpen: (open) => set({ isSshModalOpen: open }),
+
 }));
 
 export { vlanColor };

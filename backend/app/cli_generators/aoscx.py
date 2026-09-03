@@ -34,7 +34,7 @@ class AosCxCliGenerator(ConfigOutputGenerator):
                 if rule.comment:
                     lines.append(f"    {rule.seq} comment {rule.comment}")
                 lines.append(f'    {rule.seq} {rule.action.value} cli command "{rule.command_pattern}"')
-            lines.append("exit")
+            lines.append("    exit")
         return lines
 
     def _user_lines(self, state: SwitchState) -> list[str]:

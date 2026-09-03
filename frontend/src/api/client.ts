@@ -1,4 +1,4 @@
-import type { SavedConfiguration, SwitchProfile, SwitchState } from '../types/api';
+import type { PushRequest, SavedConfiguration, SwitchProfile, SwitchState } from '../types/api';
 
 const BASE_URL = '/api';
 
@@ -58,5 +58,16 @@ export async function deleteConfiguration(id: number): Promise<void> {
   if (!res.ok) throw new Error(`Échec de la suppression (${res.status})`);
 }
 
-
-
+export async function pushConfiguration(profileId: string, modal: string, pushRequest: PushRequest): Promise<string>{
+  const res = await fetch(`${BASE_URL}/profiles/${profileId}/push-configuration/${modal}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(pushRequest),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.detail ?? `Échec du déploiement de la configuration (${res.status})`);
+  }
+  const data = await res.json();
+  return data.output as string;
+}

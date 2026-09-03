@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useSwitchStore } from '../store/useSwitchStore';
 
 export function ConfigurationsRail() {
-  const savedConfigurations = useSwitchStore((s) => s.savedConfigurations);
   const configId = useSwitchStore((s) => s.configId);
   const availableProfiles = useSwitchStore((s) => s.availableProfiles);
+  const savedConfigurations = useSwitchStore((s) => s.savedConfigurations);
+
   const hasUnsavedChanges = useSwitchStore((s) => s.hasUnsavedChanges);
   const loadConfiguration = useSwitchStore((s) => s.loadConfiguration);
-  const deleteSavedConfiguration = useSwitchStore((s) => s.deleteSavedConfiguration);
   const startNewConfiguration = useSwitchStore((s) => s.startNewConfiguration);
 
   const [creating, setCreating] = useState(false);

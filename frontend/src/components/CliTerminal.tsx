@@ -1,9 +1,16 @@
 import { useState } from 'react';
+import { PushControl } from './PushControl';
+import { SshModal } from './push_modals/SshModal';
 import { useSwitchStore } from '../store/useSwitchStore';
+
 
 export function CliTerminal() {
   const cli = useSwitchStore((s) => s.cli);
   const status = useSwitchStore((s) => s.status);
+  const isModalOpen = useSwitchStore((s) => s.isSshModalOpen);
+
+  const setIsModalOpen = useSwitchStore((s) => s.setIsSshModalOpen);
+
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -19,6 +26,7 @@ export function CliTerminal() {
         <button className="btn btn-ghost" onClick={copy} disabled={!cli}>
           {copied ? 'Copié' : 'Copier'}
         </button>
+        <PushControl />
       </div>
       {status.error && <p className="field-error">{status.error}</p>}
       <pre className="terminal">
@@ -27,6 +35,9 @@ export function CliTerminal() {
       <p className="muted terminal-note">
         Séquence complète pour atteindre l'état désiré depuis un switch en configuration usine.
       </p>
+
+      {/* Modale d'accès SSH */}
+      <SshModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }
