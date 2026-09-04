@@ -3,8 +3,6 @@ import type {
   BaseDeviceInfo,
   BaseGetDeviceInfo,
   CommandRule,
-  GetRequest,
-  GetResponse,
   LocalUser,
   Port,
   PortMode,
@@ -595,7 +593,7 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
       return;
     }
 
-    const store = get();
+    const state = get();
     
     // Conserver le profil actuel, ne pas le réinitialiser
     // La configuration récupérée correspond au switch actuel, donc le profil reste valide
@@ -607,7 +605,7 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
       selectedPortIds: [],
       // NE PAS modifier configId, configName ou profileId
       // La configuration est chargée mais non sauvegardée
-      savedSnapshot: JSON.stringify(parsedState),
+      savedSnapshot: JSON.stringify(state),
       status: { loading: false, error: null },
       cli: '', // Pas de CLI car on a déjà l'état final
     });

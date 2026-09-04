@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SSHGetDeviceInfo, GetResponse, SwitchState } from '../../types/api';
+import { SSHGetDeviceInfo, GetResponse } from '../../types/api';
 import { useSwitchStore } from '../../store/useSwitchStore';
 
 
@@ -67,13 +67,12 @@ export function GetModal({ isOpen, onClose }: Props) {
                 // Sauvegarder automatiquement la configuration récupérée
                 // avec un nom par défaut basé sur le profil et le switch
                 const store = useSwitchStore.getState();
-                const configName = `from_switch_${deviceInfo.host.replace(/\./g, '_')}`;
                 
                 // Sauvegarder sans demander de nom (on utilise le nom par défaut)
-                const saveResult = await store.saveCurrentConfiguration(configName);
+                const saveResult = await store.saveCurrentConfiguration(store.configName);
                 
                 if (saveResult.ok) {
-                    alert(`Configuration récupérée et sauvegardée sous le nom: ${configName}`);
+                    alert("Configuration récupérée et sauvegardée !");
                     onClose();
                 } else {
                     alert(`Configuration chargée mais non sauvegardée: ${saveResult.error}`);

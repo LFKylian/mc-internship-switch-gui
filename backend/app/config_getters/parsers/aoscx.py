@@ -77,7 +77,7 @@ class AosCxConfigParser(ConfigParser):
             
             # Section VLAN (définition de VLANs)
             # Format: vlan 1-2 ou vlan 3
-            if line.startswith('vlan ') and not line.startswith('vlan '):
+            if line.startswith('vlan ') and not ("access" or "trunk") in line:
                 # Vérifier que ce n'est pas "interface vlan X"
                 if 'interface vlan' not in line:
                     match = re.match(r'vlan\s+(\d+(?:-\d+)?)', line)
@@ -87,12 +87,13 @@ class AosCxConfigParser(ConfigParser):
                             # Plage de VLANs : vlan 1-2
                             start, end = map(int, vlan_range.split('-'))
                             for vlan_id in range(start, end + 1):
-                                vlans[vlan_id] = Vlan(id=vlan_id, name="")
+                                if vlan_id == 1: continue
+                                vlans[vlan_id] = Vlan(id=vlan_id, name=f"{vlan_id}")
                         else:
                             # VLAN unique : vlan 3
                             current_vlan_id = int(vlan_range)
                             current_section = 'vlan_def'
-                            vlans[current_vlan_id] = Vlan(id=current_vlan_id, name="")
+                            vlans[current_vlan_id] = Vlan(id=current_vlan_id, name=f"{vlan_id}")
                 continue
             
             # Nom du VLAN (dans la section de définition de VLAN)
@@ -133,12 +134,6 @@ class AosCxConfigParser(ConfigParser):
                         native_vlan=1,
                         tagged_vlans=[]
                     )
-                continue
-            
-            # Fermeture de section interface (port physique)
-            if current_section == 'interface' and line == 'exit':
-                current_section = None
-                current_port_id = None
                 continue
             
             # Configuration dans une interface (port physique)
@@ -194,13 +189,6 @@ class AosCxConfigParser(ConfigParser):
                     current_port_id = f"vlan_{match.group(1)}"
                     current_section = 'interface_vlan'
                     in_interface_vlan_section = True
-                continue
-            
-            # Fermeture de section interface vlan
-            if current_section == 'interface_vlan' and line == 'exit':
-                current_section = None
-                current_port_id = None
-                in_interface_vlan_section = False
                 continue
             
             # Section utilisateurs locaux
