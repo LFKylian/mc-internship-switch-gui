@@ -31,9 +31,8 @@ class RestAosCxConfigGetter(ConfigGetter):
         Crée une session authentifiée avec l'API REST ArubaOS-CX.
         Retourne une session avec cookie de session valide.
         
-        Note: ArubaOS-CX REST API v10.04+ utilise:
-        - POST /rest/v10.04/login-sessions pour créer une session
-        - Le body doit être au format x-www-form-urlencoded avec user=username&password=password
+        Note: ArubaOS-CX REST API utilise différents endpoints selon la version.
+        Pour les certificats auto-signés, verify_ssl doit être False.
         """
         session = requests.Session()
         
@@ -54,9 +53,13 @@ class RestAosCxConfigGetter(ConfigGetter):
         }
         
         # URL de login - essayer plusieurs versions de l'API
+        # Note: /rest/latest/ est aussi supporté par certaines versions
         login_urls = [
+            f"{base_url}/rest/latest/login-sessions",
             f"{base_url}/rest/v10.04/login-sessions",
             f"{base_url}/rest/v1/login-sessions",
+            f"{base_url}/rest/latest/login",
+            f"{base_url}/rest/v10.04/login",
             f"{base_url}/rest/v1/login",
         ]
         
@@ -73,10 +76,15 @@ class RestAosCxConfigGetter(ConfigGetter):
                     timeout=30
                 )
                 
-                # ArubaOS-CX retourne 201 Created pour une connexion réussie
+                # ArubaOS-CX retourne 201 Created ou 200 OK pour une connexion réussie
                 if response.status_code in [200, 201]:
                     return session
                     
+            except requests.exceptions.SSLError as e:
+                # Si erreur SSL et verify_ssl=True, réessayer avec verify=False
+                if verify_ssl:
+                    continue
+                raise Exception(f"Erreur SSL: {str(e)}")
             except requests.exceptions.Timeout:
                 raise Exception("Timeout lors de la connexion au switch")
             except requests.exceptions.ConnectionError as e:
@@ -88,6 +96,9 @@ class RestAosCxConfigGetter(ConfigGetter):
     def get_config(self, device_info: RestAosCxDeviceInfo) -> str:
         """
         Récupère la configuration complète du switch via l'API REST ArubaOS-CX.
+        
+        Note: Pour ArubaOS-CX, la vérification SSL est désactivée par défaut
+        car la plupart des switches utilisent des certificats auto-signés.
         """
         # Construction de l'URL de base
         protocol = "https" if device_info.use_ssl else "http"
@@ -96,7 +107,9 @@ class RestAosCxConfigGetter(ConfigGetter):
         # Extraction des identifiants
         username = device_info.username
         password = device_info.password.get_secret_value()
-        verify_ssl = device_info.use_ssl
+        # Toujours désactiver la vérification SSL pour ArubaOS-CX
+        # car les switches utilisent généralement des certificats auto-signés
+        verify_ssl = False
         
         session = None
         try:
