@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 import type {
   BaseDeviceInfo,
+  BaseGetDeviceInfo,
   CommandRule,
+  GetRequest,
+  GetResponse,
   LocalUser,
   Port,
   PortMode,
@@ -21,6 +24,7 @@ import {
   generateCli,
   saveConfiguration as apiSaveConfiguration,
   pushConfiguration as apiPushConfiguration,
+  getConfiguration as apiGetConfiguration,
 } from '../api/client';
 
 const DEFAULT_PROFILE_ID = 'aruba-6100-48g-4sfp';
@@ -75,6 +79,9 @@ interface SwitchStoreState {
   pushStatus: { pushing: boolean; error: string | null; output: string | null };
   isSshModalOpen: boolean;
   
+  getStatus: { getting: boolean; error: string | null };
+  isGetModalOpen: boolean;
+  
   init: () => Promise<void>;
   startNewConfiguration: (profileId: string) => Promise<void>;
   loadConfigurationList: () => Promise<void>;
@@ -101,7 +108,11 @@ interface SwitchStoreState {
 
   pushConfiguration: (modal:string, pushingDeviceInfo: BaseDeviceInfo) => Promise<boolean>;
   setIsSshModalOpen: (open: boolean) => void;
-}
+  
+  getConfiguration: (modal: string, gettingDeviceInfo: BaseGetDeviceInfo) => Promise<boolean>;
+  setIsGetModalOpen: (open: boolean) => void;
+  loadParsedConfiguration: (state: SwitchState) => void;
+
 
 function buildSwitchState(state: SwitchStoreState): SwitchState {
   return {
@@ -188,6 +199,9 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
   savedSnapshot: null,
   pushStatus: { pushing: false, error: null, output: null },
   isSshModalOpen: false,
+  
+  getStatus: { getting: false, error: null },
+  isGetModalOpen: false,
   
   init: async () => {
     try {
@@ -527,9 +541,74 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
 
   setIsSshModalOpen: (open) => set({ isSshModalOpen: open }),
 
+  getConfiguration: async (modal: string, gettingDeviceInfo: BaseGetDeviceInfo) => {
+    const state = get();
+
+    if (!state.profileId) {
+      set({ getStatus: { getting: false, error: 'Profil non trouvé' } });
+      return false;
+    }
+
+    set({ getStatus: { getting: true, error: null } });
+
+    try {
+      const response = await apiGetConfiguration(modal, {
+        getting_device_info: gettingDeviceInfo,
+      });
+
+      if (response.status === 'success' && response.state) {
+        set({
+          getStatus: { getting: false, error: null },
+        });
+        return true;
+      } else {
+        set({
+          getStatus: {
+            getting: false,
+            error: response.error || 'Aucune configuration retournée',
+          },
+        });
+        return false;
+      }
+
+    } catch (err: any) {
+      set({
+        getStatus: {
+          getting: false,
+          error: err.message || 'Erreur lors de la récupération de la configuration',
+        },
+      });
+      return false;
+    }
+  },
+
+  setIsGetModalOpen: (open) => set({ isGetModalOpen: open }),
+
+  loadParsedConfiguration: (parsedState: SwitchState) => {
+    // Demander confirmation avant d'écraser la configuration actuelle
+    if (!window.confirm(
+      "Cette opération va écraser votre configuration actuelle. Voulez-vous continuer ?"
+    )) {
+      return;
+    }
+
+    set({
+      vlans: parsedState.vlans,
+      ports: parsedState.ports,
+      users: parsedState.users,
+      userGroups: parsedState.user_groups,
+      selectedPortIds: [],
+      configId: null,
+      configName: '',
+      savedSnapshot: JSON.stringify(parsedState),
+      status: { loading: false, error: null },
+    });
+    void refreshCli(get, set);
+  },
+
 }));
 
-export { vlanColor };
+export { vlanColor }
 
 
 

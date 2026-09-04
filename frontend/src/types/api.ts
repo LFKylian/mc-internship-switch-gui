@@ -99,3 +99,31 @@ export interface PushRequest {
   state: SwitchState;
   pushing_device_info: DeviceInfoUnion;
 }
+
+// Types pour la récupération de configuration (GET)
+
+export interface BaseGetDeviceInfo {
+  method: string;
+  host: string;
+  username: string;
+  password: string;
+}
+
+export interface SSHGetDeviceInfo extends BaseGetDeviceInfo {
+  device_type: string;
+  port?: number;
+  secret?: string;
+  show_running_config_cmd?: string;
+}
+
+export type GetDeviceInfoUnion = SSHGetDeviceInfo | BaseGetDeviceInfo;
+
+export interface GetRequest {
+  getting_device_info: GetDeviceInfoUnion;
+}
+
+export interface GetResponse {
+  status: string;
+  state?: SwitchState;
+  error?: string | null;
+}
