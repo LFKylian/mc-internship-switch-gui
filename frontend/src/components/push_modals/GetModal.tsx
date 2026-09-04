@@ -63,7 +63,22 @@ export function GetModal({ isOpen, onClose }: Props) {
             if (data.status === 'success' && data.state) {
                 // Charger la configuration parsée dans le store
                 loadParsedConfiguration(data.state);
-                onClose();
+                
+                // Sauvegarder automatiquement la configuration récupérée
+                // avec un nom par défaut basé sur le profil et le switch
+                const store = useSwitchStore.getState();
+                const configName = `from_switch_${deviceInfo.host.replace(/\./g, '_')}`;
+                
+                // Sauvegarder sans demander de nom (on utilise le nom par défaut)
+                const saveResult = await store.saveCurrentConfiguration(configName);
+                
+                if (saveResult.ok) {
+                    alert(`Configuration récupérée et sauvegardée sous le nom: ${configName}`);
+                    onClose();
+                } else {
+                    alert(`Configuration chargée mais non sauvegardée: ${saveResult.error}`);
+                    onClose();
+                }
             } else {
                 throw new Error(data.error || 'Aucune configuration retournée');
             }
@@ -72,7 +87,7 @@ export function GetModal({ isOpen, onClose }: Props) {
             useSwitchStore.getState().setIsGetModalOpen(true); // Garder la modale ouverte
             alert(`Erreur: ${err.message}`);
         }
-    }
+    };
 
     return (
         <div className="modal-overlay">

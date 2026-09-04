@@ -112,7 +112,7 @@ interface SwitchStoreState {
   getConfiguration: (modal: string, gettingDeviceInfo: BaseGetDeviceInfo) => Promise<boolean>;
   setIsGetModalOpen: (open: boolean) => void;
   loadParsedConfiguration: (state: SwitchState) => void;
-
+}
 
 function buildSwitchState(state: SwitchStoreState): SwitchState {
   return {
@@ -321,7 +321,7 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
     const { profile, vlans } = get();
     if (!profile) return { ok: false, error: 'Profil non chargé' };
     if (id < 2 || id > profile.max_vlan_id || profile.reserved_vlan_ids.includes(id)) {
-      return { ok: false, error: `VLAN hors plage autorisée (2–${profile.max_vlan_id})` };
+      return { ok: false, error: `VLAN hors plage autorisée (2—${profile.max_vlan_id})` };
     }
     if (vlans[id]) return { ok: false, error: `Le VLAN ${id} existe déjà` };
     if (!name.trim()) return { ok: false, error: 'Nom de VLAN requis' };
@@ -560,6 +560,9 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
         set({
           getStatus: { getting: false, error: null },
         });
+        // Charger directement la configuration parsée
+        const store = get();
+        store.loadParsedConfiguration(response.state);
         return true;
       } else {
         set({
@@ -592,23 +595,31 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
       return;
     }
 
+    const store = get();
+    
+    // Conserver le profil actuel, ne pas le réinitialiser
+    // La configuration récupérée correspond au switch actuel, donc le profil reste valide
     set({
       vlans: parsedState.vlans,
       ports: parsedState.ports,
       users: parsedState.users,
       userGroups: parsedState.user_groups,
       selectedPortIds: [],
-      configId: null,
-      configName: '',
+      // NE PAS modifier configId, configName ou profileId
+      // La configuration est chargée mais non sauvegardée
       savedSnapshot: JSON.stringify(parsedState),
       status: { loading: false, error: null },
+      cli: '', // Pas de CLI car on a déjà l'état final
     });
-    void refreshCli(get, set);
+    
+    // NE PAS rafraîchir le CLI car la configuration vient du switch réel
+    // Le CLI généré serait pour atteindre cet état depuis un état vide
+    // Or ici on a déjà cet état, donc pas besoin de CLI
   },
 
 }));
 
-export { vlanColor }
+export { vlanColor };
 
 
 
