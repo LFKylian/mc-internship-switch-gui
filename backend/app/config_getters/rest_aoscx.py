@@ -30,6 +30,10 @@ class RestAosCxConfigGetter(ConfigGetter):
         """
         Crée une session authentifiée avec l'API REST ArubaOS-CX.
         Retourne une session avec cookie de session valide.
+        
+        Note: ArubaOS-CX REST API v10.04+ utilise:
+        - POST /rest/v10.04/login-sessions pour créer une session
+        - Le body doit être au format x-www-form-urlencoded avec user=username&password=password
         """
         session = requests.Session()
         
@@ -37,40 +41,49 @@ class RestAosCxConfigGetter(ConfigGetter):
         retry_strategy = Retry(
             total=3,
             backoff_factor=1,
-            status_forcelist=[401, 500, 502, 503, 504]
+            status_forcelist=[401, 405, 500, 502, 503, 504]
         )
         adapter = HTTPAdapter(max_retries=retry_strategy)
         session.mount("http://", adapter)
         session.mount("https://", adapter)
         
-        # URL de login
-        login_url = f"{base_url}/rest/v1/login"
-        
-        # Corps de la requête de login
-        login_data = {
-            "user": {
-                "username": username,
-                "password": password
-            }
+        # En-têtes pour l'API REST ArubaOS-CX
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/x-www-form-urlencoded"
         }
         
-        try:
-            response = session.post(
-                login_url,
-                json=login_data,
-                verify=verify_ssl,
-                timeout=30
-            )
-            
-            if response.status_code != 200:
-                raise Exception(f"Échec de l'authentification: {response.status_code} - {response.text}")
-            
-            return session
-            
-        except requests.exceptions.Timeout:
-            raise Exception("Timeout lors de la connexion au switch")
-        except requests.exceptions.ConnectionError as e:
-            raise Exception(f"Impossible de se connecter au switch: {str(e)}")
+        # URL de login - essayer plusieurs versions de l'API
+        login_urls = [
+            f"{base_url}/rest/v10.04/login-sessions",
+            f"{base_url}/rest/v1/login-sessions",
+            f"{base_url}/rest/v1/login",
+        ]
+        
+        for login_url in login_urls:
+            try:
+                # Corps de la requête de login au format x-www-form-urlencoded
+                login_data = f"user={username}&password={password}"
+                
+                response = session.post(
+                    login_url,
+                    data=login_data,
+                    headers=headers,
+                    verify=verify_ssl,
+                    timeout=30
+                )
+                
+                # ArubaOS-CX retourne 201 Created pour une connexion réussie
+                if response.status_code in [200, 201]:
+                    return session
+                    
+            except requests.exceptions.Timeout:
+                raise Exception("Timeout lors de la connexion au switch")
+            except requests.exceptions.ConnectionError as e:
+                raise Exception(f"Impossible de se connecter au switch: {str(e)}")
+        
+        # Si aucune URL n'a fonctionné
+        raise Exception(f"Échec de l'authentification sur toutes les URLs de login")
     
     def get_config(self, device_info: RestAosCxDeviceInfo) -> str:
         """
@@ -91,36 +104,52 @@ class RestAosCxConfigGetter(ConfigGetter):
             session = self._create_session(base_url, username, password, verify_ssl)
             
             # 2. Récupération de la configuration (running-config)
-            config_url = f"{base_url}/rest/v1/system/configuration?config=running"
+            # Essayer plusieurs endpoints selon la version de l'API
+            config_urls = [
+                f"{base_url}/rest/v10.04/system/configuration?config=running",
+                f"{base_url}/rest/v1/system/configuration?config=running",
+                f"{base_url}/rest/v10.04/system?method=display&cmd=show+running-config",
+                f"{base_url}/rest/v1/system?method=display&cmd=show+running-config",
+            ]
             
-            response = session.get(
-                config_url,
-                verify=verify_ssl,
-                timeout=30
-            )
+            for config_url in config_urls:
+                try:
+                    response = session.get(
+                        config_url,
+                        verify=verify_ssl,
+                        timeout=30
+                    )
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        
+                        # ArubaOS-CX retourne la configuration dans différents champs selon la version
+                        if isinstance(data, dict):
+                            # Format standard : {"configuration": "..."}
+                            if 'configuration' in data:
+                                return data['configuration']
+                            # Format alternatif : {"output": "..."}
+                            elif 'output' in data:
+                                return data['output']
+                            # Format avec liste de commandes
+                            elif 'commands' in data:
+                                return '\n'.join(data['commands'])
+                            # Format avec message
+                            elif 'message' in data:
+                                return data['message']
+                            # Retourne tout le JSON si aucun champ connu
+                            else:
+                                return str(data)
+                        else:
+                            return str(data)
+                        
+                except requests.exceptions.Timeout:
+                    continue
+                except Exception:
+                    continue
             
-            if response.status_code == 200:
-                data = response.json()
-                
-                # ArubaOS-CX retourne la configuration dans différents champs selon la version
-                if isinstance(data, dict):
-                    # Format standard : {"configuration": "..."}
-                    if 'configuration' in data:
-                        return data['configuration']
-                    # Format alternatif : {"output": "..."}
-                    elif 'output' in data:
-                        return data['output']
-                    # Format avec liste de commandes
-                    elif 'commands' in data:
-                        return '\n'.join(data['commands'])
-                    # Retourne tout le JSON si aucun champ connu
-                    else:
-                        return str(data)
-                else:
-                    return str(data)
-            else:
-                error_msg = f"Erreur {response.status_code}: {response.text}"
-                raise Exception(error_msg)
+            # Si aucun endpoint n'a fonctionné
+            raise Exception("Aucun endpoint de configuration valide trouvé")
                 
         except requests.exceptions.Timeout:
             raise Exception("Timeout lors de la récupération de la configuration")
@@ -132,8 +161,18 @@ class RestAosCxConfigGetter(ConfigGetter):
             # 3. Fermeture de la session (logout)
             if session is not None:
                 try:
-                    logout_url = f"{base_url}/rest/v1/logout"
-                    session.post(logout_url, verify=verify_ssl, timeout=10)
+                    # Essayer plusieurs URLs de logout
+                    logout_urls = [
+                        f"{base_url}/rest/v10.04/login-sessions/logout",
+                        f"{base_url}/rest/v1/login-sessions/logout",
+                        f"{base_url}/rest/v1/logout",
+                    ]
+                    for logout_url in logout_urls:
+                        try:
+                            session.post(logout_url, verify=verify_ssl, timeout=5)
+                            break
+                        except Exception:
+                            continue
                 except Exception:
                     # On ignore les erreurs lors du logout
                     pass
