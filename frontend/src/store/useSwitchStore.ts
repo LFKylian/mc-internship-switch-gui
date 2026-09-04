@@ -3,8 +3,6 @@ import type {
   BaseDeviceInfo,
   BaseGetDeviceInfo,
   CommandRule,
-  GetRequest,
-  GetResponse,
   LocalUser,
   Port,
   PortMode,
@@ -111,7 +109,7 @@ interface SwitchStoreState {
   
   getConfiguration: (modal: string, gettingDeviceInfo: BaseGetDeviceInfo) => Promise<boolean>;
   setIsGetModalOpen: (open: boolean) => void;
-
+}
 
 function buildSwitchState(state: SwitchStoreState): SwitchState {
   return {

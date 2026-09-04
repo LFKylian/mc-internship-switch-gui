@@ -46,4 +46,4 @@ export function CliTerminal() {
       <RestModal isOpen={useSwitchStore((s) => s.isGetModalOpen)} onClose={() => useSwitchStore.getState().setIsGetModalOpen(false)} />
     </div>
   );
-
+}
