@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { PushControl } from './PushControl';
+import { GetControl } from './GetControl';
 import { SshModal } from './push_modals/SshModal';
+import { RestModal } from './push_modals/RestModal';
 import { useSwitchStore } from '../store/useSwitchStore';
 
 
@@ -26,6 +28,7 @@ export function CliTerminal() {
         <button className="btn btn-ghost" onClick={copy} disabled={!cli}>
           {copied ? 'Copié' : 'Copier'}
         </button>
+        <GetControl />
         <PushControl />
       </div>
       {status.error && <p className="field-error">{status.error}</p>}
@@ -38,6 +41,9 @@ export function CliTerminal() {
 
       {/* Modale d'accès SSH */}
       <SshModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      
+      {/* Modale de récupération REST */}
+      <RestModal isOpen={useSwitchStore((s) => s.isGetModalOpen)} onClose={() => useSwitchStore.getState().setIsGetModalOpen(false)} />
     </div>
   );
-}
+

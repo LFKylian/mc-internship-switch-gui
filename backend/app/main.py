@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 from app.cli_generators.aoscx import AosCxCliGenerator
 from app.cli_generators.base import ConfigOutputGenerator
 from app.config_pushers.factory import PusherFactory
+from app.config_getters.factory import GetterFactory
 from app.domain.push import PushRequest
+from app.domain.get import GetRequest
 from app.database import get_db
 from app.domain.configurations import ConfigurationRepository, SavedConfiguration
 from app.domain.models import SwitchState
@@ -32,6 +34,10 @@ PROFILES: dict[str, SwitchProfile] = {
 GENERATORS: dict[str, ConfigOutputGenerator] = {
     "aoscx": AosCxCliGenerator(),
 }
+
+# Initialisation des getters disponibles
+from app.config_getters.rest_aoscx import RestAosCxConfigGetter
+GetterFactory.register("rest_aoscx", RestAosCxConfigGetter())
 
 
 def get_config_repo(db: Session = Depends(get_db)) -> ConfigurationRepository:
@@ -151,3 +157,42 @@ def push_configuration(profile_id: str, modal: str, payload: PushRequest) -> dic
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur d'authentification ou de connexion SSH")
     except Exception:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Échec de l'application de la configuration")
+
+
+# --- API Get Configurations ---
+
+@app.post("/api/get-configuration/{modal}", status_code=status.HTTP_200_OK)
+def get_configuration(modal: str, payload: GetRequest) -> dict[str, str]:
+    """
+    Récupère la configuration depuis un switch.
+    Implémente le principe GRASP : Controller (coordonne les opérations).
+    """
+    # 0. Validation de la cohérence entre l'URL et le payload
+    if payload.getting_device_info.method != modal:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Incohérence au niveau du mode de connexion pour la récupération."
+        )
+
+    # 1. Vérification que le getter est disponible
+    try:
+        getter = GetterFactory.get(modal)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    # 2. Vérification que le getter peut gérer cette requête
+    if not getter.can_get(payload.getting_device_info):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"La méthode '{modal}' ne peut pas récupérer la configuration pour ce type de switch"
+        )
+
+    # 3. Récupération de la configuration
+    try:
+        config = getter.get_config(payload.getting_device_info)
+        return {"status": "success", "configuration": config}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Échec de la récupération de la configuration: {str(e)}"
+        )

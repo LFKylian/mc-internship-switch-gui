@@ -99,3 +99,28 @@ export interface PushRequest {
   state: SwitchState;
   pushing_device_info: DeviceInfoUnion;
 }
+
+// Types pour la récupération de configuration (GET)
+
+export interface BaseGetDeviceInfo {
+  method: string;
+  host: string;
+  username: string;
+  password: string;
+}
+
+export interface RestAosCxDeviceInfo extends BaseGetDeviceInfo {
+  port?: number;
+  use_ssl?: boolean;
+}
+
+export type GetDeviceInfoUnion = RestAosCxDeviceInfo | BaseGetDeviceInfo;
+
+export interface GetRequest {
+  getting_device_info: GetDeviceInfoUnion;
+}
+
+export interface GetResponse {
+  status: string;
+  configuration: string;
+}
