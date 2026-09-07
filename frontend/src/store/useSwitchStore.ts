@@ -488,7 +488,7 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
     void refreshCli(get, set);
   },
 
-  pushConfiguration: async (modal: string, pushingDeviceInfo: BaseDeviceInfo) => {
+  pushConfiguration: async (modal: string, pushingDeviceInfo: BaseDeviceInfo, currentState?: SwitchState | null) => {
     const state = get();
 
     if (!state.profileId) {
@@ -501,6 +501,7 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
     try {
       const output = await apiPushConfiguration(state.profileId, modal, {
         state: buildSwitchState(state),
+        current_state: currentState ?? null,
         pushing_device_info: pushingDeviceInfo,
       });
 

@@ -97,5 +97,6 @@ export type DeviceInfoUnion = SSHDeviceInfo | BaseDeviceInfo;
 
 export interface PushRequest {
   state: SwitchState;
+  current_state?: SwitchState | null;
   pushing_device_info: DeviceInfoUnion;
 }

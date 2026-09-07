@@ -71,3 +71,17 @@ export async function pushConfiguration(profileId: string, modal: string, pushRe
   const data = await res.json();
   return data.output as string;
 }
+
+export async function fetchCurrentState(profileId: string, deviceInfo: BaseDeviceInfo): Promise<SwitchState> {
+  const res = await fetch(`${BASE_URL}/profiles/${profileId}/fetch-current-state`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(deviceInfo),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.detail ?? `Échec de la récupération de l'état actuel (${res.status})`);
+  }
+  const data = await res.json();
+  return data.current_state as SwitchState;
+}

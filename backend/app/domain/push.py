@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal, Optional, Union
 from pydantic import BaseModel, Field, SecretStr
 
 from app.domain.models import SwitchState
@@ -41,4 +41,5 @@ DeviceInfoUnion = Annotated[
 
 class PushRequest(BaseModel):
     state: SwitchState
+    current_state: Optional[SwitchState] = None
     pushing_device_info: DeviceInfoUnion
