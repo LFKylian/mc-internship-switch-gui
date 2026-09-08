@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 
 # Groupes intégrés ArubaOS-CX : toujours présents, non supprimables, privilèges figés.
 # Cf. doc officielle "user-group" (AOS-CX 10.14 Hardening Guide / CLI Guide).
-BUILTIN_GROUPS = {"administrators", "operators", "auditors"}
+BUILTIN_GROUPS = {"operators", "auditors", "administrators"}
 
 MAX_LOCAL_USERS = 63  # + admin implicite = 64 max, conforme à la doc officielle
 MAX_USER_GROUPS = 29

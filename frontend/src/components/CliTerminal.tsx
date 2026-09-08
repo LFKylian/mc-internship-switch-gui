@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { PushControl } from './PushControl';
-import { GetControl } from './GetControl';
-import { SshModal } from './push_modals/SshModal';
-import { GetModal } from './push_modals/GetModal';
+import { GetControl } from './get/GetControl';
+import { SshGetModal } from './get/SshGetModal';
+import { PushControl } from './push/PushControl';
+import { SshPushModal } from './push/SshPushModal';
 import { useSwitchStore } from '../store/useSwitchStore';
 
 
@@ -40,10 +40,10 @@ export function CliTerminal() {
       </p>
 
       {/* Modale d'accès SSH */}
-      <SshModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <SshPushModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
       
       {/* Modale de récupération */}
-      <GetModal isOpen={useSwitchStore((s) => s.isGetModalOpen)} onClose={() => useSwitchStore.getState().setIsGetModalOpen(false)} />
+      <SshGetModal isOpen={useSwitchStore((s) => s.isGetModalOpen)} onClose={() => useSwitchStore.getState().setIsGetModalOpen(false)} />
     </div>
   );
 }

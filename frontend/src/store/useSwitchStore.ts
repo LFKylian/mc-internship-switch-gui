@@ -79,6 +79,8 @@ interface SwitchStoreState {
   
   getStatus: { getting: boolean; error: string | null };
   isGetModalOpen: boolean;
+
+  baseState: SwitchState | null;
   
   init: () => Promise<void>;
   startNewConfiguration: (profileId: string) => Promise<void>;
@@ -118,6 +120,7 @@ function buildSwitchState(state: SwitchStoreState): SwitchState {
     ports: state.ports,
     users: state.users,
     user_groups: state.userGroups,
+    base_state: state.baseState,
   };
 }
 
@@ -200,6 +203,8 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
   
   getStatus: { getting: false, error: null },
   isGetModalOpen: false,
+
+  baseState: null,
   
   init: async () => {
     try {
@@ -608,6 +613,7 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
       savedSnapshot: JSON.stringify(state),
       status: { loading: false, error: null },
       cli: '', // Pas de CLI car on a déjà l'état final
+      baseState: parsedState.base_state ? parsedState.base_state : null,
     });
     
     // NE PAS rafraîchir le CLI car la configuration vient du switch réel

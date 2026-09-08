@@ -190,6 +190,7 @@ def get_configuration(modal: str, payload: GetRequest) -> GetResponse:
     # 3. Récupération et parsing de la configuration
     try:
         state = getter.get_config(payload.getting_device_info)
+        state.set_base_state()
         return GetResponse(status="success", state=state.model_dump())
     except (NetmikoTimeoutException, NetmikoAuthenticationException):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur d'authentification ou de connexion SSH")

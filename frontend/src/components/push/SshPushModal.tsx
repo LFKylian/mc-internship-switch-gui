@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SSHGetDeviceInfo, GetResponse } from '../../types/api';
+import { SSHDeviceInfo } from '../../types/api';
 import { useSwitchStore } from '../../store/useSwitchStore';
 
 
@@ -9,9 +9,9 @@ interface Props {
 }
 
 
-export function GetModal({ isOpen, onClose }: Props) {
-    const getStatus = useSwitchStore((s) => s.getStatus);
-    const loadParsedConfiguration = useSwitchStore((s) => s.loadParsedConfiguration);
+export function SshPushModal({ isOpen, onClose }: Props) {
+    const pushConfiguration = useSwitchStore((s) => s.pushConfiguration);
+    const pushStatus = useSwitchStore((s) => s.pushStatus);
 
     const [host, setHost] = useState('');
     const [username, setUsername] = useState('admin');
@@ -19,7 +19,6 @@ export function GetModal({ isOpen, onClose }: Props) {
     const [deviceType, setDeviceType] = useState('aruba_aoscx');
     const [port, setPort] = useState('');
     const [secret, setSecret] = useState('');
-    const [showRunningConfigCmd, setShowRunningConfigCmd] = useState('show running-config');
 
     if (!isOpen) return null;
 
@@ -27,71 +26,32 @@ export function GetModal({ isOpen, onClose }: Props) {
         e.preventDefault();
 
         if (!window.confirm(
-            "Voulez-vous récupérer la configuration depuis le switch via SSH? " +
-            "Cela écrasera votre configuration actuelle."
+            "Votre configuration va être déployer"
         )) {
             return;
         }
 
         const parsedPort: number = port ? Number.parseInt(port, 10) : 22;
-        const deviceInfo: SSHGetDeviceInfo = {
+        const deviceInfo: SSHDeviceInfo = {
             method: "ssh",
             host,
             username,
             password,
             device_type: deviceType,
             port: Number.isNaN(parsedPort) ? 22 : parsedPort,
-            secret,
-            show_running_config_cmd: showRunningConfigCmd,
-        };
-        
-        try {
-            // Appel direct à l'API
-            const response = await fetch('/api/get-configuration/ssh', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ getting_device_info: deviceInfo }),
-            });
-            
-            if (!response.ok) {
-                const body = await response.json().catch(() => null);
-                throw new Error(body?.detail ?? `Échec de la récupération de la configuration (${response.status})`);
-            }
-            
-            const data: GetResponse = await response.json();
-            
-            if (data.status === 'success' && data.state) {
-                // Charger la configuration parsée dans le store
-                loadParsedConfiguration(data.state);
-                
-                // Sauvegarder automatiquement la configuration récupérée
-                // avec un nom par défaut basé sur le profil et le switch
-                const store = useSwitchStore.getState();
-                
-                // Sauvegarder sans demander de nom (on utilise le nom par défaut)
-                const saveResult = await store.saveCurrentConfiguration(store.configName);
-                
-                if (saveResult.ok) {
-                    alert("Configuration récupérée et sauvegardée !");
-                    onClose();
-                } else {
-                    alert(`Configuration chargée mais non sauvegardée: ${saveResult.error}`);
-                    onClose();
-                }
-            } else {
-                throw new Error(data.error || 'Aucune configuration retournée');
-            }
-            
-        } catch (err: any) {
-            useSwitchStore.getState().setIsGetModalOpen(true); // Garder la modale ouverte
-            alert(`Erreur: ${err.message}`);
+            secret
+        }
+        const success = await pushConfiguration(deviceInfo.method, deviceInfo);
+        if (success) {
+            window.alert(`Sortie :\n\n${pushStatus.output}`);
+            onClose();
         }
     };
 
     return (
         <div className="modal-overlay">
             <div className="modal-content">
-                <h3>Récupération de la configuration via SSH</h3>
+                <h3>Déploiement SSH vers le switch</h3>
                 <form className="stacked-form" onSubmit={submit}>
                     <div className="field">
                         <label>Adresse IP du Switch</label>
@@ -157,28 +117,17 @@ export function GetModal({ isOpen, onClose }: Props) {
                             required={false}
                         />
                     </div>
-                    <div className="field">
-                        <label>Commande show running-config</label>
-                        <input
-                            type="text"
-                            className="input"
-                            value={showRunningConfigCmd}
-                            onChange={(e) => setShowRunningConfigCmd(e.target.value)}
-                            placeholder="show running-config"
-                            required
-                        />
-                    </div>
 
                     <div className="save-control">
-                        <button type="button" className="btn btn-ghost" onClick={onClose} disabled={getStatus.getting}>
+                        <button type="button" className="btn btn-ghost" onClick={onClose} disabled={pushStatus.pushing}>
                             Annuler
                         </button>
-                        <button type="submit" className="btn btn-primary" disabled={getStatus.getting}>
-                            {getStatus.getting ? 'Récupération…' : 'Récupérer'}
+                        <button type="submit" className="btn btn-primary" disabled={pushStatus.pushing}>
+                            {pushStatus.pushing ? 'Déploiement…' : 'Déployer'}
                         </button>
                     </div>
 
-                    {getStatus.error && <p className="field-error">{getStatus.error}</p>}
+                    {pushStatus.error && <p className="field-error">{pushStatus.error}</p>}
                 </form>
             </div>
         </div>

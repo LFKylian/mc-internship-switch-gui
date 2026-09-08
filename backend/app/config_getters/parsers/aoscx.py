@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 
 from app.config_getters.parsers.base import ConfigParser
 from app.domain.models import Port, PortMode, SwitchState, Vlan
-from app.domain.users import LocalUser
+from app.domain.users import CommandRule, LocalUser, RuleAction, UserGroup
 
 
 class AosCxConfigParser(ConfigParser):
@@ -23,10 +23,10 @@ class AosCxConfigParser(ConfigParser):
         markers = [
             "!Version AOS-CX",
             "! ArubaOS-CX",
-            "! Software image",
-            "hostname",
             "interface",
             "vlan",
+            "user",
+            "user-group"
         ]
         return any(marker in raw_config for marker in markers)
     
@@ -46,12 +46,14 @@ class AosCxConfigParser(ConfigParser):
         - interface 1/1/2
         -   no shutdown
         -   vlan access 1
-        - username admin group administrators password ciphertext ...
+        - user admin group administrators password ciphertext ...
+        - user-group group_test
+        -   10 permit cli command ".*"
         """
         vlans: Dict[int, Vlan] = {}
         ports: Dict[str, Port] = {}
         users: Dict[str, LocalUser] = {}
-        user_groups: Dict[str, dict] = {}
+        user_groups: Dict[str, UserGroup] = {}
         
         # Nettoyage initial
         lines = raw_config.splitlines()
@@ -60,7 +62,6 @@ class AosCxConfigParser(ConfigParser):
         current_section = None
         current_vlan_id = None
         current_port_id = None
-        current_user = None
         in_interface_vlan_section = False
         
         for line in lines:
@@ -68,11 +69,6 @@ class AosCxConfigParser(ConfigParser):
             
             # Ignorer les commentaires et lignes vides
             if not line or line.startswith('!') or line.startswith('#'):
-                continue
-            
-            # Détection des sections principales
-            if line.startswith('hostname'):
-                current_section = 'hostname'
                 continue
             
             # Section VLAN (définition de VLANs)
@@ -193,20 +189,51 @@ class AosCxConfigParser(ConfigParser):
             
             # Section utilisateurs locaux
             # Format: username admin group administrators password ciphertext ...
-            if line.startswith('username ') and 'password' in line.lower():
+            if line.startswith('user ') and 'password' in line.lower():
                 # Extraire le username et le groupe
                 # Format: username admin group administrators password ...
-                match = re.match(r'username\s+(\S+)\s+group\s+(\S+)', line, re.IGNORECASE)
+                match = re.match(r'user\s+(\S+)\s+group\s+(\S+)', line, re.IGNORECASE)
                 if match:
                     username = match.group(1)
-                    group_name = match.group(2)
-                    # On ne peut pas récupérer le password depuis la config (ciphertext)
-                    users[username] = LocalUser(
-                        username=username,
-                        group=group_name,
-                        password_plaintext=''  # vide, l'utilisateur devra le re-saisir
+                    if username != 'admin':
+                        group_name = match.group(2)
+                        # On ne peut pas récupérer le password depuis la config (ciphertext)
+                        users[username] = LocalUser(
+                            username=username,
+                            group=group_name,
+                            password_plaintext='__HIDDEN__'  # vide, l'utilisateur devra le re-saisir
+                        )
+                continue
+
+            # Section groupes
+            if line.startswith('user-group '):
+                # Extraire le nom du groupe
+                # Format: user-group group_test
+                match = re.match(r'user-group\s+(\S+)', line, re.IGNORECASE)
+                if match:
+                    current_section = 'group_def'
+                    current_group = match.group(1)
+                    user_groups[current_group] = UserGroup(
+                        name=current_group,
+                        rules=[]
                     )
                 continue
+
+            if current_section == 'group_def' and current_group and ('permit cli command' in line.lower() or 'deny cli command' in line.lower()):
+                group = user_groups[current_group]
+                # Extraire les règles du groupe
+                # Format: 10 permit cli command ".*"
+                match = re.match(r'(\d+)\s+(permit|deny)\s+cli\s+command\s+"(.*)"', line, re.IGNORECASE)
+                if match:
+                    action = match.group(2)
+                    if action == RuleAction.PERMIT or action == RuleAction.DENY:
+                        group.rules.append(CommandRule(
+                            seq=int(match.group(1)),
+                            action=match.group(2),
+                            command_pattern=match.group(3),
+                        ))
+                continue
+
         
         # Retourner l'état parsé
         return SwitchState(

@@ -67,6 +67,7 @@ export interface SwitchState {
   ports: Record<string, Port>;
   users: Record<string, LocalUser>;
   user_groups: Record<string, UserGroupApi>;
+  base_state: SwitchState | null;
 }
 
 // Miroir de backend/app/domain/configurations.py

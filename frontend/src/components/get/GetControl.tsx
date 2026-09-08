@@ -1,4 +1,4 @@
-import { useSwitchStore } from '../store/useSwitchStore';
+import { useSwitchStore } from '../../store/useSwitchStore';
 
 
 export function GetControl() {

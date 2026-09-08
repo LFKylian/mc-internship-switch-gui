@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 from app.domain.models import SwitchState
 from app.switch_profiles.base import SwitchProfile
+from app.domain.state_diff import compute_state_diff
 
 
 class ConfigOutputGenerator(ABC):
@@ -14,6 +15,12 @@ class ConfigOutputGenerator(ABC):
     c'est ce qui permettra d'ajouter AnsiblePlaybookGenerator plus tard sans
     toucher au contrôleur ni au moteur de domaine.
     """
+
+    @staticmethod
+    def getStateDiff(state: SwitchState) -> SwitchState:
+        if state.base_state is not None:
+            return compute_state_diff(state.base_state, state)
+        return state
 
     @abstractmethod
     def generate(self, profile: SwitchProfile, state: SwitchState) -> str: ...
