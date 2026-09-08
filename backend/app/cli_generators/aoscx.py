@@ -26,7 +26,7 @@ class AosCxCliGenerator(ConfigOutputGenerator):
         lines.extend(self._user_group_lines(state_diff))
         lines.extend(self._user_lines(state_diff))
         lines.extend(self._interface_lines(profile, state_diff))
-        lines.append("exit")  # quitte le mode configuration globale
+        lines.append("    exit")  # quitte le mode configuration globale
         return "\n".join(lines)
 
     def _user_group_lines(self, state: SwitchState) -> list[str]:

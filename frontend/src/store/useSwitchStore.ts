@@ -256,6 +256,7 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
         configName: saved.name,
         status: { loading: false, error: null },
         savedSnapshot: JSON.stringify(saved.state),
+        baseState: saved.state.base_state,
       });
       await refreshCli(get, set);
     } catch (err) {
@@ -516,18 +517,24 @@ export const useSwitchStore = create<SwitchStoreState>((set, get) => ({
     set({ pushStatus: { pushing: true, error: null, output: null } });
 
     try {
+      const switchState = buildSwitchState(state);
       const output = await apiPushConfiguration(state.profileId, modal, {
-        state: buildSwitchState(state),
+        state: switchState,
         pushing_device_info: pushingDeviceInfo,
       });
 
+      switchState.base_state = null;
       set({
         pushStatus: {
           pushing: false,
           error: null,
           output: output,
         },
+        baseState: switchState,
       });
+
+      void refreshCli(get, set);
+
       return true;
 
     } catch (err: any) {
