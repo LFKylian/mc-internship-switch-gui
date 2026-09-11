@@ -1,6 +1,6 @@
-# Aruba Switch Builder
+# Switch Config GUI
 
-**Aruba Switch Builder** est une application web conçue pour simplifier la configuration des commutateurs réseau (switches) de la gamme Aruba AOS-CX. Elle offre une interface graphique interactive permettant de concevoir, sauvegarder et générer automatiquement les scripts de commande (CLI) nécessaires à la mise en service d'un équipement.
+**Switch Config GUI** est une application web conçue pour simplifier la configuration des commutateurs réseau (switches) de la gamme Aruba AOS-CX (en premier lieu). Elle offre une interface graphique interactive permettant de concevoir, sauvegarder et générer automatiquement les scripts de commande (CLI) nécessaires à la mise en service d'un équipement.
 
 ---
 
@@ -8,7 +8,7 @@
 
 ### À quoi sert l'application ?
 
-La configuration d'un switch réseau s'effectue habituellement en saisissant des lignes de commande textuelles dans un terminal. **Aruba Switch Builder** permet d'effectuer cette tâche de manière visuelle et intuitive :
+La configuration d'un switch réseau s'effectue habituellement en saisissant des lignes de commande textuelles dans un terminal. **Switch Config GUI** permet d'effectuer cette tâche de manière visuelle et intuitive :
 
 * **Visualisation matérielle** : Affichage d'un schéma interactif de la façade du switch respectant la disposition réelle des ports (cuivre RJ45 et fibre SFP+).
 
@@ -48,11 +48,13 @@ La configuration d'un switch réseau s'effectue habituellement en saisissant des
 ### Structure du Projet
 
 ```text
-aruba-gui/
+mc-internship-switch-gui/
 ├── backend/
 │   ├── alembic/                # Migrations de schéma PostgreSQL[cite: 2]
 │   ├── app/
 │   │   ├── cli_generators/     # Moteurs de génération CLI (Pattern Polymorphism)[cite: 2]
+│   │   ├── config_getters/     # Gestion de la récupération de la configuration du switch réel (Pattern Polymorphism)
+│   │   ├── config_pushers/     # Gestion de l'envoie de la configuration vers le switch réel (Pattern Polymorphism)
 │   │   ├── domain/             # Modèles métiers Pydantic & règles de validation[cite: 2]
 │   │   ├── repositories/       # Couche d'accès aux données (PostgreSQL/SQLAlchemy)[cite: 2]
 │   │   ├── switch_profiles/    # Définitions matérielles & dispositions SVG des switches[cite: 2]

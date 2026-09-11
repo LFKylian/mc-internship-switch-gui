@@ -26,6 +26,8 @@ export interface SwitchProfile {
   reserved_vlan_ids: number[];
 }
 
+export const DELETION_MARK = '__DELETE__'; // miroir de la constante de backend/app/domain/state_diff.py
+
 export interface Vlan {
   id: number;
   name: string;
@@ -56,6 +58,8 @@ export interface UserGroupApi {
   rules: CommandRule[];
 }
 
+export const HIDDEN_PASSWORD = '__HIDDEN__'; // miroir de la constante de backend/app/domain/users.py
+
 export interface LocalUser {
   username: string;
   group: string;
@@ -67,6 +71,7 @@ export interface SwitchState {
   ports: Record<string, Port>;
   users: Record<string, LocalUser>;
   user_groups: Record<string, UserGroupApi>;
+  base_state: SwitchState | null;
 }
 
 // Miroir de backend/app/domain/configurations.py
@@ -98,4 +103,32 @@ export type DeviceInfoUnion = SSHDeviceInfo | BaseDeviceInfo;
 export interface PushRequest {
   state: SwitchState;
   pushing_device_info: DeviceInfoUnion;
+}
+
+// Types pour la récupération de configuration (GET)
+
+export interface BaseGetDeviceInfo {
+  method: string;
+  host: string;
+  username: string;
+  password: string;
+}
+
+export interface SSHGetDeviceInfo extends BaseGetDeviceInfo {
+  device_type: string;
+  port?: number;
+  secret?: string;
+  show_running_config_cmd?: string;
+}
+
+export type GetDeviceInfoUnion = SSHGetDeviceInfo | BaseGetDeviceInfo;
+
+export interface GetRequest {
+  getting_device_info: GetDeviceInfoUnion;
+}
+
+export interface GetResponse {
+  status: string;
+  state?: SwitchState;
+  error?: string | null;
 }

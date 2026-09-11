@@ -1,4 +1,5 @@
 import type { PortDefinition } from '../types/api';
+// import { UndoRedoControls } from './UndoRedoControls';
 import { useSwitchStore, vlanColor } from '../store/useSwitchStore';
 
 const PORT_W = 22;
@@ -70,8 +71,9 @@ export function SwitchPanel() {
       <div className="panel-header">
         <div>
           <h2>{profile.model}</h2>
-          <p className="muted">{profile.ports.length} ports · clic pour sélectionner, Maj+clic pour la sélection multiple</p>
+          <p className="muted">{profile.ports.length} ports · clic pour sélectionner, Maj/Ctrl+clic pour la sélection multiple</p>
         </div>
+        {/* <UndoRedoControls /> */}
       </div>
       <div className="switch-faceplate-scroll">
         <svg

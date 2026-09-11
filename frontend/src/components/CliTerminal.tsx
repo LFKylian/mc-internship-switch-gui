@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { PushControl } from './PushControl';
-import { SshModal } from './push_modals/SshModal';
+import { GetControl } from './get/GetControl';
+import { SshGetModal } from './get/SshGetModal';
+import { PushControl } from './push/PushControl';
+import { SshPushModal } from './push/SshPushModal';
 import { useSwitchStore } from '../store/useSwitchStore';
 
 
@@ -23,21 +25,28 @@ export function CliTerminal() {
     <div className="panel terminal-panel">
       <div className="panel-header">
         <h2>Commandes CLI</h2>
+      </div>
+      <div className='save-control'>
         <button className="btn btn-ghost" onClick={copy} disabled={!cli}>
           {copied ? 'Copié' : 'Copier'}
         </button>
+        <GetControl />
         <PushControl />
       </div>
       {status.error && <p className="field-error">{status.error}</p>}
+      <br />
       <pre className="terminal">
-        <code>{cli || 'configure terminal\nexit'}</code>
+        <code>{cli || 'configure terminal\n    exit'}</code>
       </pre>
       <p className="muted terminal-note">
-        Séquence complète pour atteindre l'état désiré depuis un switch en configuration usine.
+        Séquence complète pour atteindre l'état désiré
       </p>
 
       {/* Modale d'accès SSH */}
-      <SshModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <SshPushModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      
+      {/* Modale de récupération */}
+      <SshGetModal isOpen={useSwitchStore((s) => s.isGetModalOpen)} onClose={() => useSwitchStore.getState().setIsGetModalOpen(false)} />
     </div>
   );
 }

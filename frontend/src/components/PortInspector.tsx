@@ -107,7 +107,7 @@ export function PortInspector() {
             className="btn btn-ghost btn-block"
             onClick={() => setPortEnabled(firstSelected.id, !firstSelected.enabled)}
           >
-            {firstSelected.enabled ? 'Désactiver le port (shutdown)' : 'Activer le port (no shutdown)'}
+            {firstSelected.enabled ? 'Désactiver le port' : 'Activer le port'}
           </button>
 
           <div className="field-group">
@@ -118,7 +118,10 @@ export function PortInspector() {
               placeholder="ex. Uplink salle serveur"
               value={description}
               maxLength={64}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                const newDescription = e.target.value.replace(/[^a-zA-Z0-9_\-\s]/g, "");
+                setDescription(newDescription);
+              }}
               onBlur={() => setPortDescription(firstSelected.id, description)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') (e.target as HTMLInputElement).blur();

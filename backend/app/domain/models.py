@@ -62,6 +62,13 @@ class SwitchState(BaseModel):
     users: dict[str, LocalUser] = Field(default_factory=dict)
     user_groups: dict[str, UserGroup] = Field(default_factory=dict)
 
+    base_state: Optional[SwitchState] = Field(default=None)
+
+    def set_base_state(self) -> None:
+        """Sauvegarde une copie de l'état actuel comme état de base."""
+        # model_copy(deep=True) fige les valeurs actuelles des dictionnaires et sous-modèles
+        self.base_state = self.model_copy(deep=True)
+
     @model_validator(mode="after")
     def validate_users_and_groups(self) -> "SwitchState":
         if len(self.users) > MAX_LOCAL_USERS:

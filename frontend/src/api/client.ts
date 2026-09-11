@@ -1,4 +1,4 @@
-import type { PushRequest, SavedConfiguration, SwitchProfile, SwitchState } from '../types/api';
+import type { GetRequest, GetResponse, PushRequest, SavedConfiguration, SwitchProfile, SwitchState } from '../types/api';
 
 const BASE_URL = '/api';
 
@@ -70,4 +70,17 @@ export async function pushConfiguration(profileId: string, modal: string, pushRe
   }
   const data = await res.json();
   return data.output as string;
+}
+
+export async function getConfiguration(modal: string, getRequest: GetRequest): Promise<GetResponse> {
+  const res = await fetch(`${BASE_URL}/get-configuration/${modal}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(getRequest),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.detail ?? `Échec de la récupération de la configuration (${res.status})`);
+  }
+  return res.json();
 }

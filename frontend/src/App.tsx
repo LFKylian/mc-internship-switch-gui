@@ -25,8 +25,8 @@ export default function App() {
         <div className="brand">
           <span className="brand-mark" />
           <div>
-            <h1>Aruba Switch Builder</h1>
-            <p className="muted">Configuration graphique — génération CLI ArubaOS-CX</p>
+            <h1>Switch Config GUI</h1>
+            <p className="muted">Configuration graphique — by lef-kyks</p>
           </div>
         </div>
         <div className="header-actions">

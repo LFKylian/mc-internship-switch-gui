@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from app.cli_generators.base import ConfigOutputGenerator
-from app.domain.models import Port, PortMode, SwitchState
+from app.domain.users import BUILTIN_GROUPS
+from app.domain.state_diff import DELETION_MARK
+
 from app.switch_profiles.base import SwitchProfile
+from app.domain.models import Port, PortMode, SwitchState
+from app.cli_generators.base import ConfigOutputGenerator
 
 
 class AosCxCliGenerator(ConfigOutputGenerator):
@@ -17,31 +20,42 @@ class AosCxCliGenerator(ConfigOutputGenerator):
     """
 
     def generate(self, profile: SwitchProfile, state: SwitchState) -> str:
+        state_diff: SwitchState = ConfigOutputGenerator.getStateDiff(state)
+
         lines: list[str] = ["configure terminal"]
-        lines.extend(self._vlan_lines(profile, state))
-        lines.extend(self._user_group_lines(state))
-        lines.extend(self._user_lines(state))
-        lines.extend(self._interface_lines(profile, state))
-        lines.append("exit")  # quitte le mode configuration globale
+        lines.extend(self._vlan_lines(profile, state_diff))
+        lines.extend(self._user_group_lines(state_diff))
+        lines.extend(self._user_lines(state_diff))
+        lines.extend(self._interface_lines(profile, state_diff))
+        lines.append("    exit")  # quitte le mode configuration globale
         return "\n".join(lines)
 
     def _user_group_lines(self, state: SwitchState) -> list[str]:
         lines: list[str] = []
-        groups = sorted(state.user_groups.values(), key=lambda g: g.name)
-        for group in groups:
-            lines.append(f"user-group {group.name}")
-            for rule in sorted(group.rules, key=lambda r: r.seq):
-                if rule.comment:
-                    lines.append(f"    {rule.seq} comment {rule.comment}")
-                lines.append(f'    {rule.seq} {rule.action.value} cli command "{rule.command_pattern}"')
-            lines.append("    exit")
+        groups = state.user_groups
+        for key in groups:
+            if DELETION_MARK in key:
+                lines.append(f"    no user-group {groups[key].name}")
+            else:
+                lines.append(f"    user-group {groups[key].name}")
+                for rule in sorted(groups[key].rules, key=lambda r: r.seq):
+                    if rule.comment:
+                        lines.append(f"        {rule.seq} comment {rule.comment}")
+                    lines.append(f'        {rule.seq} {rule.action.value} cli command "{rule.command_pattern}"')
+                lines.append("        exit")
         return lines
 
     def _user_lines(self, state: SwitchState) -> list[str]:
         lines: list[str] = []
-        users = sorted(state.users.values(), key=lambda u: u.username)
-        for user in users:
-            lines.append(f"user {user.username} group {user.group} password plaintext {user.password_plaintext}")
+        users = state.users
+        for key in users:
+            if DELETION_MARK in key:
+                lines.append(f"    no user {users[key].username}")
+            else:
+                if f"{DELETION_MARK}{users[key].group}" in state.user_groups.keys():
+                    lines.append(f"    user {users[key].username} group {BUILTIN_GROUPS[0]} password plaintext {users[key].password_plaintext}")
+                else:
+                    lines.append(f"    user {users[key].username} group {users[key].group} password plaintext {users[key].password_plaintext}")
         return lines
 
     def _vlan_lines(self, profile: SwitchProfile, state: SwitchState) -> list[str]:
@@ -51,43 +65,46 @@ class AosCxCliGenerator(ConfigOutputGenerator):
             key=lambda v: v.id,
         )
         for vlan in vlans:
-            lines.append(f"vlan {vlan.id}")
-            lines.append(f"    name {vlan.name}")
-            if vlan.description:
-                lines.append(f"    description {vlan.description}")
-            lines.append("    exit")
+            if vlan.description == DELETION_MARK:
+                lines.append(f"    no vlan {vlan.id}")
+            else:
+                lines.append(f"    vlan {vlan.id}")
+                lines.append(f"        name {vlan.name}")
+                if vlan.description:
+                    lines.append(f"        description {vlan.description}")
+                lines.append("        exit")
         return lines
 
     def _interface_lines(self, profile: SwitchProfile, state: SwitchState) -> list[str]:
         lines: list[str] = []
         known_ids = profile.port_ids()
         ports = sorted(
-            (p for p in state.ports.values() if p.id in known_ids and self._is_non_default(p)),
+            (p for p in state.ports.values() if p.id in known_ids),
             key=self._port_sort_key,
         )
         for port in ports:
-            lines.append(f"interface {port.id}")
+            lines.append(f"    interface {port.id}")
 
             if profile.requires_no_routing:
                 # Uniquement sur les familles où les ports sont L3 par défaut
                 # (ex. 83xx/84xx). Sur le 6100 (requires_no_routing=False),
                 # les ports sont déjà L2 : cette ligne est omise, volontairement.
-                lines.append("    no routing")
+                lines.append("        no routing")
 
-            lines.append("    no shutdown" if port.enabled else "    shutdown")
+            lines.append("        no shutdown" if port.enabled else "        shutdown")
 
             if port.description:
-                lines.append(f"    description {port.description}")
+                lines.append(f"        description {port.description}")
 
             if port.mode == PortMode.ACCESS:
-                lines.append(f"    vlan access {port.native_vlan}")
+                lines.append(f"        vlan access {port.native_vlan}")
             else:
-                lines.append(f"    vlan trunk native {port.native_vlan}")
+                lines.append(f"        vlan trunk native {port.native_vlan}")
                 if port.tagged_vlans:
                     tagged = ",".join(str(v) for v in sorted(port.tagged_vlans))
-                    lines.append(f"    vlan trunk allowed {tagged}")
+                    lines.append(f"        vlan trunk allowed {tagged}")
 
-            lines.append("    exit")
+            lines.append("        exit")
         return lines
 
     @staticmethod
