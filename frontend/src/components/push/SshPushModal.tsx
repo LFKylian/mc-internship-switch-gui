@@ -51,10 +51,12 @@ export function SshPushModal({ isOpen, onClose }: Props) {
     return (
         <div className="modal-overlay">
             <div className="modal-content">
-                <h3>Déploiement SSH vers le switch</h3>
+                <div className="panel-header">
+                    <h2>Déploiement SSH vers le switch</h2>
+                </div>
                 <form className="stacked-form" onSubmit={submit}>
                     <div className="field">
-                        <label>Adresse IP du Switch</label>
+                        <label className="field-label">Adresse IP du Switch</label>
                         <input
                             type="text"
                             className="input"
@@ -65,7 +67,7 @@ export function SshPushModal({ isOpen, onClose }: Props) {
                         />
                     </div>
                     <div className="field">
-                        <label>Nom d'utilisateur</label>
+                        <label className="field-label">Nom d'utilisateur</label>
                         <input
                             type="text"
                             className="input"
@@ -75,7 +77,7 @@ export function SshPushModal({ isOpen, onClose }: Props) {
                         />
                     </div>
                     <div className="field">
-                        <label>Mot de passe SSH</label>
+                        <label className="field-label">Mot de passe SSH</label>
                         <input
                             type="password"
                             className="input"
@@ -85,7 +87,7 @@ export function SshPushModal({ isOpen, onClose }: Props) {
                         />
                     </div>
                     <div className="field">
-                        <label>Type de l'appareil</label>
+                        <label className="field-label">Type de l'appareil</label>
                         <input
                             type="text"
                             className="input"
@@ -96,7 +98,7 @@ export function SshPushModal({ isOpen, onClose }: Props) {
                         />
                     </div>
                     <div className="field">
-                        <label>Port</label>
+                        <label className="field-label">Port</label>
                         <input
                             type="number"
                             className="input"
@@ -107,7 +109,7 @@ export function SshPushModal({ isOpen, onClose }: Props) {
                         />
                     </div>
                     <div className="field">
-                        <label>Mdp mode privilégié</label>
+                        <label className="field-label">Mdp mode privilégié</label>
                         <input
                             type="password"
                             className="input"

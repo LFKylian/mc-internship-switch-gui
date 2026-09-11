@@ -1,9 +1,9 @@
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from app.config_getters.parsers.base import ConfigParser
 from app.domain.models import Port, PortMode, SwitchState, Vlan
-from app.domain.users import CommandRule, LocalUser, RuleAction, UserGroup
+from app.domain.users import HIDDEN_PASSWORD, CommandRule, LocalUser, RuleAction, UserGroup
 
 
 class AosCxConfigParser(ConfigParser):
@@ -52,6 +52,7 @@ class AosCxConfigParser(ConfigParser):
         """
         vlans: Dict[int, Vlan] = {}
         ports: Dict[str, Port] = {}
+        trunk_ports: List[str] = [] # trunk ports with all vlans tagged
         users: Dict[str, LocalUser] = {}
         user_groups: Dict[str, UserGroup] = {}
         
@@ -73,7 +74,7 @@ class AosCxConfigParser(ConfigParser):
             
             # Section VLAN (définition de VLANs)
             # Format: vlan 1-2 ou vlan 3
-            if line.startswith('vlan ') and not ("access" or "trunk") in line:
+            if line.startswith('vlan ') and 'access' not in line and 'trunk' not in line:
                 # Vérifier que ce n'est pas "interface vlan X"
                 if 'interface vlan' not in line:
                     match = re.match(r'vlan\s+(\d+(?:-\d+)?)', line)
@@ -137,10 +138,13 @@ class AosCxConfigParser(ConfigParser):
                 port = ports[current_port_id]
                 
                 # Port activé (no shutdown = enabled)
+                if line.lower() == 'shutdown':
+                    port.enabled = False
+                    continue
+
                 if line.lower() == 'no shutdown':
                     port.enabled = True
-                elif line.lower() == 'shutdown':
-                    port.enabled = False
+                    continue
                 
                 # Mode trunk avec VLAN natif
                 # Format: vlan trunk native 1
@@ -148,13 +152,7 @@ class AosCxConfigParser(ConfigParser):
                 if match:
                     port.mode = PortMode.TRUNK
                     port.native_vlan = int(match.group(1))
-                
-                # Mode trunk avec VLANs autorisés
-                # Format: vlan trunk allowed all
-                if 'vlan trunk allowed all' in line.lower():
-                    port.mode = PortMode.TRUNK
-                    # "all" signifie tous les VLANs, mais on ne peut pas les lister tous
-                    # On va laisser tagged_vlans vide et le frontend gérera
+                    continue
                 
                 # Mode trunk avec VLANs spécifiques
                 # Format: vlan trunk allowed 1-10,20,30
@@ -164,6 +162,8 @@ class AosCxConfigParser(ConfigParser):
                     vlan_list_str = match.group(1)
                     # Parser la liste de VLANs (ex: "1-10,20,30" -> [1,2,3,...,10,20,30])
                     port.tagged_vlans = self._parse_vlan_list(vlan_list_str)
+                    trunk_ports.append(current_port_id)
+                    continue
                 
                 # Mode access avec VLAN
                 # Format: vlan access 1
@@ -171,12 +171,13 @@ class AosCxConfigParser(ConfigParser):
                 if match:
                     port.mode = PortMode.ACCESS
                     port.native_vlan = int(match.group(1))
+                    continue 
                 
                 # Description
                 match = re.search(r'description\s+"([^"]*)"', line, re.IGNORECASE)
                 if match:
                     port.description = match.group(1)
-                continue
+                    continue
             
             # Section Interface VLAN (configuration IP des VLANs)
             if line.startswith('interface vlan '):
@@ -195,14 +196,13 @@ class AosCxConfigParser(ConfigParser):
                 match = re.match(r'user\s+(\S+)\s+group\s+(\S+)', line, re.IGNORECASE)
                 if match:
                     username = match.group(1)
-                    if username != 'admin':
-                        group_name = match.group(2)
-                        # On ne peut pas récupérer le password depuis la config (ciphertext)
-                        users[username] = LocalUser(
-                            username=username,
-                            group=group_name,
-                            password_plaintext='__HIDDEN__'  # vide, l'utilisateur devra le re-saisir
-                        )
+                    group_name = match.group(2)
+                    # On ne peut pas récupérer le password depuis la config (ciphertext)
+                    users[username] = LocalUser(
+                        username=username,
+                        group=group_name,
+                        password_plaintext=HIDDEN_PASSWORD  # vide, l'utilisateur devra le re-saisir
+                    )
                 continue
 
             # Section groupes
@@ -234,6 +234,9 @@ class AosCxConfigParser(ConfigParser):
                         ))
                 continue
 
+
+        self._set_all_tagged_vlans(vlans, ports, trunk_ports)
+
         
         # Retourner l'état parsé
         return SwitchState(
@@ -242,6 +245,12 @@ class AosCxConfigParser(ConfigParser):
             users=users,
             user_groups=user_groups
         )
+
+    def _set_all_tagged_vlans(self, vlans, ports, trunk_ports) -> None:
+        for trunk_port_id in trunk_ports:
+            port = ports[trunk_port_id]
+            if len(port.tagged_vlans) == 1 and port.tagged_vlans[0] == 0:
+                port.tagged_vlans = [vlan for vlan in vlans.keys()]
     
     def _parse_vlan_list(self, vlan_list_str: str) -> List[int]:
         """
@@ -253,13 +262,11 @@ class AosCxConfigParser(ConfigParser):
         vlan_list_str = vlan_list_str.strip()
         
         if vlan_list_str.lower() == 'all':
-            return []  # Tous les VLANs, on retourne vide
+            return [0]  # On retourne un ID impossible en tant normal
         
         result = []
-        # Remplacer les virgules par des espaces pour simplifier
-        vlan_list_str = vlan_list_str.replace(',', ' ')
         
-        for part in vlan_list_str.split():
+        for part in vlan_list_str.split(','):
             if '-' in part:
                 # Plage de VLANs
                 start, end = map(int, part.split('-'))

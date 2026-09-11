@@ -13,6 +13,8 @@ MAX_LOCAL_USERS = 63  # + admin implicite = 64 max, conforme à la doc officiell
 MAX_USER_GROUPS = 29
 MAX_RULES_PER_GROUP = 1024
 
+HIDDEN_PASSWORD = '__HIDDEN__'
+
 
 class RuleAction(str, Enum):
     PERMIT = "permit"
@@ -66,13 +68,6 @@ class LocalUser(BaseModel):
     username: str = Field(..., min_length=1, max_length=32)
     group: str  # nom d'un groupe intégré ou défini par l'utilisateur
     password_plaintext: str = Field(..., min_length=1, max_length=64)
-
-    @field_validator("username")
-    @classmethod
-    def username_must_not_be_admin(cls, v: str) -> str:
-        if v == "admin":
-            raise ValueError("'admin' est un compte implicite du switch : il ne se déclare pas dans l'état désiré.")
-        return v
 
     @field_validator("password_plaintext")
     @classmethod

@@ -417,7 +417,6 @@ select {
 .vlan-form {
   display: flex;
   gap: 8px;
-  margin-bottom: 12px;
 }
 
 .input-id {
@@ -518,6 +517,21 @@ select {
 .vlan-name {
   flex: 1;
   font-size: 13px;
+}
+
+.vlan-row-editable {
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+  border: 1px solid transparent; /* Prévient les sauts de pixels au survol */
+}
+
+.vlan-row-editable:hover {
+  border: 1px solid var(--border-1);
+}
+
+.vlan-row-editable.active {
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
 }
 
 /* Port inspector */

@@ -26,6 +26,8 @@ export interface SwitchProfile {
   reserved_vlan_ids: number[];
 }
 
+export const DELETION_MARK = '__DELETE__'; // miroir de la constante de backend/app/domain/state_diff.py
+
 export interface Vlan {
   id: number;
   name: string;
@@ -55,6 +57,8 @@ export interface UserGroupApi {
   name: string;
   rules: CommandRule[];
 }
+
+export const HIDDEN_PASSWORD = '__HIDDEN__'; // miroir de la constante de backend/app/domain/users.py
 
 export interface LocalUser {
   username: string;

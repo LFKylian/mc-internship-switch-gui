@@ -76,10 +76,12 @@ export function SshGetModal({ isOpen, onClose }: Props) {
     return (
         <div className="modal-overlay">
             <div className="modal-content">
-                <h3>Récupération de la configuration via SSH</h3>
+                <div className="panel-header">
+                    <h2>Récupération de la configuration via SSH</h2>
+                </div>
                 <form className="stacked-form" onSubmit={submit}>
-                    <div className="field">
-                        <label>Adresse IP du Switch</label>
+                    <div>
+                        <label className="field-label">Adresse IP du Switch</label>
                         <input
                             type="text"
                             className="input"
@@ -89,8 +91,8 @@ export function SshGetModal({ isOpen, onClose }: Props) {
                             required
                         />
                     </div>
-                    <div className="field">
-                        <label>Nom d'utilisateur</label>
+                    <div>
+                        <label className="field-label">Nom d'utilisateur</label>
                         <input
                             type="text"
                             className="input"
@@ -99,8 +101,8 @@ export function SshGetModal({ isOpen, onClose }: Props) {
                             required
                         />
                     </div>
-                    <div className="field">
-                        <label>Mot de passe SSH</label>
+                    <div>
+                        <label className="field-label">Mot de passe SSH</label>
                         <input
                             type="password"
                             className="input"
@@ -109,8 +111,8 @@ export function SshGetModal({ isOpen, onClose }: Props) {
                             required
                         />
                     </div>
-                    <div className="field">
-                        <label>Type de l'appareil</label>
+                    <div>
+                        <label className="field-label">Type de l'appareil</label>
                         <input
                             type="text"
                             className="input"
@@ -120,8 +122,8 @@ export function SshGetModal({ isOpen, onClose }: Props) {
                             required
                         />
                     </div>
-                    <div className="field">
-                        <label>Port</label>
+                    <div>
+                        <label className="field-label">Port</label>
                         <input
                             type="number"
                             className="input"
@@ -131,8 +133,8 @@ export function SshGetModal({ isOpen, onClose }: Props) {
                             required={false}
                         />
                     </div>
-                    <div className="field">
-                        <label>Mdp mode privilégié</label>
+                    <div>
+                        <label className="field-label">Mdp mode privilégié</label>
                         <input
                             type="password"
                             className="input"
@@ -142,8 +144,8 @@ export function SshGetModal({ isOpen, onClose }: Props) {
                             required={false}
                         />
                     </div>
-                    <div className="field">
-                        <label>Commande show running-config</label>
+                    <div>
+                        <label className="field-label">Commande show running-config</label>
                         <input
                             type="text"
                             className="input"

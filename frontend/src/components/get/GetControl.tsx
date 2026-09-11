@@ -5,6 +5,7 @@ export function GetControl() {
     const configId = useSwitchStore((s) => s.configId);
     const getStatus = useSwitchStore((s) => s.getStatus);
     const isGetModalOpen = useSwitchStore((s) => s.isGetModalOpen);
+    const isPushModalOpen = useSwitchStore((s) => s.isSshModalOpen);
 
     const setIsGetModalOpen = useSwitchStore((s) => s.setIsGetModalOpen);
 
@@ -23,10 +24,10 @@ export function GetControl() {
     return (
         <button
             className="btn btn-secondary" 
-            disabled={getStatus.getting}
+            disabled={getStatus.getting || isPushModalOpen}
             onClick={handleGet}
         >
-            {getStatus.getting ? 'Récupération…' : 'Récupérer'}
+            {getStatus.getting ? 'Récupération…' : 'Récupération'}
         </button>
     );
 }

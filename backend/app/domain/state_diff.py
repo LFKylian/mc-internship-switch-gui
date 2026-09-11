@@ -8,11 +8,11 @@ from __future__ import annotations
 from typing import Optional
 
 from app.domain.users import LocalUser, UserGroup
-from app.switch_profiles.base import SwitchProfile
-from app.domain.models import Port, PortMode, SwitchState
+from app.domain.models import Port, SwitchState, Vlan
 
 
 DELETION_MARK: str = "__DELETE__"
+
 
 def compute_state_diff(base_state: SwitchState, desired_state: SwitchState) -> SwitchState:
     """
@@ -45,9 +45,14 @@ def compute_state_diff(base_state: SwitchState, desired_state: SwitchState) -> S
             diff_state.vlans[vlan_id] = desired_state.vlans[vlan_id]
 
     # VLANs à supprimer (présents dans base mais pas dans desired)
-    # On peut utiliser un VLAN avec id=-1 comme marqueur de suppression
-    # Mais pour l'instant, on ne gère pas la suppression de VLANs utilisés
-    # (c'est complexe car il faut vérifier qu'aucun port ne l'utilise)
+    for vlan_id in base_vlan_ids - desired_vlan_ids:
+        # On marque pour suppression - en CLI AOS-CX, on utilise "no vlan <id>"
+        # Pour l'instant, on inclut le VLAN avec un marqueur spécial
+        diff_state.vlans[vlan_id] = Vlan(
+            id=vlan_id,
+            name="x",
+            description=DELETION_MARK
+        )
 
     # Calcul des différences pour les ports
     all_port_ids = set(base_state.ports.keys()) | set(desired_state.ports.keys())
@@ -60,6 +65,13 @@ def compute_state_diff(base_state: SwitchState, desired_state: SwitchState) -> S
             # Port doit être supprimé - on le marque avec un port désactivé
             # Mais en pratique, on ne peut pas supprimer un port, juste le désactiver
             continue
+
+        # Vérification que le port ne fais pas référence à un VLAN non existant
+        if desired_port.tagged_vlans and desired_port.tagged_vlans != []:
+            desired_port.tagged_vlans = [vlan_id for vlan_id in desired_port.tagged_vlans if vlan_id in desired_state.vlans.keys()]
+
+        if desired_port.native_vlan not in desired_state.vlans.keys():
+            desired_port.native_vlan = 1
 
         if base_port is None:
             # Port n'existe pas dans l'état actuel, il faut le configurer
@@ -123,30 +135,3 @@ def _compare_ports(base: Port, desired: Port) -> Optional[Port]:
 
     # Il y a des différences, retourner le port souhaité
     return desired
-
-
-# def create_empty_state_from_profile(profile: SwitchProfile) -> SwitchState:
-#     """
-#     Crée un état vide (usine) à partir d'un profil de switch.
-    
-#     C'est l'état par défaut : tous les ports en mode access sur VLAN 1,
-#     activés, sans description.
-#     """
-
-#     ports = {}
-#     for port_def in profile.ports:
-#         ports[port_def.id] = Port(
-#             id=port_def.id,
-#             enabled=True,
-#             mode=PortMode.ACCESS,
-#             native_vlan=1,
-#             tagged_vlans=[],
-#             description=None
-#         )
-
-#     return SwitchState(
-#         vlans={},
-#         ports=ports,
-#         users={},
-#         user_groups={}
-#     )

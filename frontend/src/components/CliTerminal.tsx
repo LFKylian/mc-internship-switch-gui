@@ -25,6 +25,8 @@ export function CliTerminal() {
     <div className="panel terminal-panel">
       <div className="panel-header">
         <h2>Commandes CLI</h2>
+      </div>
+      <div className='save-control'>
         <button className="btn btn-ghost" onClick={copy} disabled={!cli}>
           {copied ? 'Copié' : 'Copier'}
         </button>
@@ -32,11 +34,12 @@ export function CliTerminal() {
         <PushControl />
       </div>
       {status.error && <p className="field-error">{status.error}</p>}
+      <br />
       <pre className="terminal">
-        <code>{cli || 'configure terminal\nexit'}</code>
+        <code>{cli || 'configure terminal\n    exit'}</code>
       </pre>
       <p className="muted terminal-note">
-        Séquence complète pour atteindre l'état désiré depuis un switch en configuration usine.
+        Séquence complète pour atteindre l'état désiré
       </p>
 
       {/* Modale d'accès SSH */}

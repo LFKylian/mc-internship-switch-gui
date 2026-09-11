@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.domain.users import BUILTIN_GROUPS
 from app.domain.state_diff import DELETION_MARK
+
 from app.switch_profiles.base import SwitchProfile
 from app.domain.models import Port, PortMode, SwitchState
 from app.cli_generators.base import ConfigOutputGenerator
@@ -51,10 +52,10 @@ class AosCxCliGenerator(ConfigOutputGenerator):
             if DELETION_MARK in key:
                 lines.append(f"    no user {users[key].username}")
             else:
-                if f"{DELETION_MARK}{users[key].group}" not in state.user_groups.keys():
-                    lines.append(f"    user {users[key].username} group {users[key].group} password plaintext {users[key].password_plaintext}")
-                else:
+                if f"{DELETION_MARK}{users[key].group}" in state.user_groups.keys():
                     lines.append(f"    user {users[key].username} group {BUILTIN_GROUPS[0]} password plaintext {users[key].password_plaintext}")
+                else:
+                    lines.append(f"    user {users[key].username} group {users[key].group} password plaintext {users[key].password_plaintext}")
         return lines
 
     def _vlan_lines(self, profile: SwitchProfile, state: SwitchState) -> list[str]:
@@ -64,18 +65,21 @@ class AosCxCliGenerator(ConfigOutputGenerator):
             key=lambda v: v.id,
         )
         for vlan in vlans:
-            lines.append(f"    vlan {vlan.id}")
-            lines.append(f"        name {vlan.name}")
-            if vlan.description:
-                lines.append(f"        description {vlan.description}")
-            lines.append("        exit")
+            if vlan.description == DELETION_MARK:
+                lines.append(f"    no vlan {vlan.id}")
+            else:
+                lines.append(f"    vlan {vlan.id}")
+                lines.append(f"        name {vlan.name}")
+                if vlan.description:
+                    lines.append(f"        description {vlan.description}")
+                lines.append("        exit")
         return lines
 
     def _interface_lines(self, profile: SwitchProfile, state: SwitchState) -> list[str]:
         lines: list[str] = []
         known_ids = profile.port_ids()
         ports = sorted(
-            (p for p in state.ports.values() if p.id in known_ids and self._is_non_default(p)),
+            (p for p in state.ports.values() if p.id in known_ids),
             key=self._port_sort_key,
         )
         for port in ports:
@@ -87,7 +91,7 @@ class AosCxCliGenerator(ConfigOutputGenerator):
                 # les ports sont déjà L2 : cette ligne est omise, volontairement.
                 lines.append("        no routing")
 
-            lines.append("        no shutdown" if port.enabled else "    shutdown")
+            lines.append("        no shutdown" if port.enabled else "        shutdown")
 
             if port.description:
                 lines.append(f"        description {port.description}")

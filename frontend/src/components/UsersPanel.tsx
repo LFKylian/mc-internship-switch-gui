@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BUILTIN_GROUPS } from '../types/api';
+import { BUILTIN_GROUPS, HIDDEN_PASSWORD } from '../types/api';
 import { useSwitchStore } from '../store/useSwitchStore';
 
 export function UsersPanel() {
@@ -71,7 +71,7 @@ export function UsersPanel() {
           disabled={isEditing}
         />
         <select className="input" value={group} onChange={(e) => setGroup(e.target.value)}>
-          {groupOptions.map((g) => (
+          {username !== 'admin' && groupOptions.map((g) => (
             <option key={g} value={g}>
               {g}
             </option>
@@ -81,7 +81,7 @@ export function UsersPanel() {
           <input
             type={showPassword ? 'text' : 'password'}
             placeholder="Mot de passe (plaintext)"
-            value={password}
+            value={password === HIDDEN_PASSWORD ? "" : password}
             onChange={(e) => setPassword(e.target.value)}
             className="input"
             maxLength={64}
@@ -104,30 +104,28 @@ export function UsersPanel() {
       {error && <p className="field-error">{error}</p>}
 
       <ul className="user-list list-below-form">
-        <li className="user-row user-row-implicit">
-          <span className="user-name">admin</span>
-          <span className="user-group muted">administrators (implicite)</span>
-        </li>
         {userList.length === 0 && <li className="muted list-empty">Aucun utilisateur créé.</li>}
         {userList.map((user) => (
           <li
             key={user.username}
-            className={`user-row user-row-editable${editingUsername === user.username ? ' active' : ''}`}
+            className={user.username === 'admin' ?
+              `user-row user-row-${editingUsername === 'admin' ? 'editable active' : 'implicit'}` :
+              `user-row user-row-editable${editingUsername === user.username ? ' active' : ''}`}
             onClick={() => startEdit(user.username)}
           >
             <span className="user-name">{user.username}</span>
             <span className="user-group muted">{user.group}</span>
-            <button
+            {user.username !== 'admin' && <button
               className="btn btn-ghost btn-icon"
               onClick={(e) => {
                 e.stopPropagation();
                 if (editingUsername === user.username) cancelEdit();
-                deleteUser(user.username);
+                if (user.username !== 'admin') deleteUser(user.username);
               }}
               aria-label={`Supprimer ${user.username}`}
             >
               ×
-            </button>
+            </button>}
           </li>
         ))}
       </ul>
