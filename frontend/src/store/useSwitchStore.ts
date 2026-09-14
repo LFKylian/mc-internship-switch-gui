@@ -4,6 +4,7 @@ import type {
   BaseDeviceInfo,
   BaseGetDeviceInfo,
   CommandRule,
+  IpAddress,
   LocalUser,
   Port,
   PortMode,
@@ -92,8 +93,8 @@ interface SwitchStoreState {
   hasUnsavedChanges: () => boolean;
   togglePortSelection: (portId: string, additive: boolean) => void;
   clearSelection: () => void;
-  createVlan: (id: number, name: string, description: string | null) => { ok: boolean; error?: string };
-  updateVlan: (id: number, name: string, description: string | null) => { ok: boolean; error?: string };
+  createVlan: (id: number, name: string, description: string | null, ipInterface: IpAddress | null) => { ok: boolean; error?: string };
+  updateVlan: (id: number, name: string, description: string | null, ipInterface: IpAddress | null) => { ok: boolean; error?: string };
   deleteVlan: (id: number) => void;
   applyToSelection: (mode: PortMode, nativeVlan: number, taggedVlans: number[]) => void;
   setPortEnabled: (portId: string, enabled: boolean) => void;
@@ -325,7 +326,7 @@ export const useSwitchStore = create<SwitchStoreState>(
 
       clearSelection: () => set({ selectedPortIds: [] }),
 
-      createVlan: (id, name, description) => {
+      createVlan: (id, name, description, ipInterface) => {
         const { profile, vlans } = get();
         if (!profile) return { ok: false, error: 'Profil non chargé' };
         if (id < 2 || id > profile.max_vlan_id || profile.reserved_vlan_ids.includes(id)) {
@@ -334,13 +335,13 @@ export const useSwitchStore = create<SwitchStoreState>(
         if (vlans[id]) return { ok: false, error: `Le VLAN ${id} existe déjà` };
         if (!name.trim()) return { ok: false, error: 'Nom de VLAN requis' };
 
-        const nextVlans = { ...vlans, [id]: { id, name: name.trim(), description } };
+        const nextVlans = { ...vlans, [id]: { id, name: name.trim(), description, ip_interface: ipInterface } };
         set({ vlans: nextVlans });
         void refreshCli(get, set);
         return { ok: true };
       },
 
-      updateVlan: (id, name, description) => {
+      updateVlan: (id, name, description, ipInterface) => {
         const { profile, vlans } = get();
         if (!profile) return { ok: false, error: 'Profil non chargé' };
         if (id < 2 || id > profile.max_vlan_id || profile.reserved_vlan_ids.includes(id)) {
@@ -349,7 +350,7 @@ export const useSwitchStore = create<SwitchStoreState>(
         if (!vlans[id]) return { ok: false, error: `Le VLAN ${id} n'existe pas` };
         if (!name.trim()) return { ok: false, error: 'Nom de VLAN requis' };
 
-        const nextVlans = { ...vlans, [id]: { id, name: name.trim(), description } };
+        const nextVlans = { ...vlans, [id]: { id, name: name.trim(), description, ip_interface: ipInterface } };
         set({ vlans: nextVlans });
         void refreshCli(get, set);
         return { ok: true };

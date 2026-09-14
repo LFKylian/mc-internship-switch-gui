@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from enum import Enum
 from typing import Optional
 
@@ -19,10 +20,45 @@ class PortMode(str, Enum):
     TRUNK = "trunk"
 
 
+class IpAddress(BaseModel):
+    ip: str
+    mask: str
+
+    @field_validator("ip")
+    @classmethod
+    def validate_ip(cls, v: str) -> str:
+        match = re.match(r"^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$", v)
+        if not match:
+            raise ValueError("Format de l'adresse IP invalide.")
+
+        octets = [int(match.group(i)) for i in range(1, 5)]
+
+        for i, octet in enumerate(octets):
+            if octet < 0 or octet > 255:
+                raise ValueError("Chaque octet doit être compris entre 0 et 255.")
+            if i == 3 and (octet == 0 or octet == 255):
+                raise ValueError("Le dernier octet ne peut pas être 0 ou 255.")
+
+        return v
+
+    @field_validator("mask")
+    @classmethod
+    def validate_mask(cls, v: str) -> str:
+        try:
+            mask_val = int(v)
+            if not (1 <= mask_val <= 32):
+                raise ValueError("Le masque doit être compris entre 1 et 32.")
+        except ValueError:
+            raise ValueError("Valeur du masque non reconnue.")
+
+        return v
+
+
 class Vlan(BaseModel):
     id: int = Field(..., ge=1, le=4094)
     name: str = Field(..., min_length=1, max_length=32)
     description: Optional[str] = None
+    ip_interface: Optional[IpAddress] = Field(default=None)
 
 
 class Port(BaseModel):

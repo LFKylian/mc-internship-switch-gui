@@ -28,10 +28,16 @@ export interface SwitchProfile {
 
 export const DELETION_MARK = '__DELETE__'; // miroir de la constante de backend/app/domain/state_diff.py
 
+export interface IpAddress {
+  ip: string;
+  mask: string;
+}
+
 export interface Vlan {
   id: number;
   name: string;
   description?: string | null;
+  ip_interface?: IpAddress | null;
 }
 
 export interface Port {

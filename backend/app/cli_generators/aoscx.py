@@ -4,8 +4,8 @@ from app.domain.users import BUILTIN_GROUPS
 from app.domain.state_diff import DELETION_MARK
 
 from app.switch_profiles.base import SwitchProfile
-from app.domain.models import Port, PortMode, SwitchState
 from app.cli_generators.base import ConfigOutputGenerator
+from app.domain.models import Port, PortMode, SwitchState, Vlan
 
 
 class AosCxCliGenerator(ConfigOutputGenerator):
@@ -73,6 +73,16 @@ class AosCxCliGenerator(ConfigOutputGenerator):
                 if vlan.description:
                     lines.append(f"        description {vlan.description}")
                 lines.append("        exit")
+                lines.extend(self._interface_vlan_lines(vlan))
+        return lines
+
+    def _interface_vlan_lines(self, vlan: Vlan) -> list[str]:
+        lines: list[str] = []
+        if vlan.ip_interface:
+            vlan_interface = vlan.ip_interface
+            lines.append(f"    interface vlan {vlan.id}")
+            lines.append(f"        ip address {vlan_interface.ip}/{vlan_interface.mask}")
+            lines.append("        exit")
         return lines
 
     def _interface_lines(self, profile: SwitchProfile, state: SwitchState) -> list[str]:
