@@ -115,113 +115,201 @@ select {
 
 /* Rail latéral — configurations sauvegardées */
 
+/* Container principal du rail latéral */
 .app-rail {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding-top: 4px;
-  min-height: 0;
-}
-
-.app-rail-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.app-rail-item {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 48px;
+  height: 100%;
+  max-height: 91vh; /* S'assure de ne pas dépasser la hauteur de l'écran */
+  background-color: var(--surface-1);
+  z-index: 10;
+  user-select: none;
+  box-sizing: border-box;
+  border-radius: var(--radius);
+}
+
+/* En-tête fixe avec le bouton "+" toujours au premier plan */
+.rail-header {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-1);
+}
+
+.rail-tab-add {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
-  border: 1px solid var(--border-1);
-  background: var(--surface-1);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
-  font-size: 15px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 500;
   cursor: pointer;
-  padding: 0;
-  flex-shrink: 0;
+  transition: all 0.15s ease;
 }
 
-.app-rail-item:hover {
+.rail-tab-add:hover {
+  background: var(--surface-3);
   border-color: var(--accent);
-}
-
-.app-rail-item.active {
-  border-color: var(--accent);
-  background: var(--accent-soft);
   color: var(--accent);
 }
 
-.app-rail-initial {
-  font-weight: 600;
-  font-size: 13px;
+/* Zone scrollable pour la liste d'onglets */
+.rail-tabs-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0; /* INDISPENSABLE : permet au conteneur flex de rétrécir et d'activer le scroll */
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 0 8px 6px;
+  gap: 4px;
+
+  /* Défilement fluide sans barre visuelle encombrante */
+  scrollbar-width: none;
 }
 
-.app-rail-remove {
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--surface-2);
-  border: 1px solid var(--border-1);
+/* Indicateur de scroll UX : fine barre de défilement visible au survol/défilement */
+.rail-tabs-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.rail-tabs-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rail-tabs-container::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 4px;
+}
+
+.rail-tabs-container::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Onglet vertical individuel */
+.rail-tab {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  width: 100%;
+  flex: 0 0 85px;
+  min-height: 36px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-right: none;
+  border-radius: var(--radius) 0 0 var(--radius);
   color: var(--text-muted);
-  opacity: 0;
-  transition: opacity 0.12s ease;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
 }
 
-.app-rail-item:hover .app-rail-remove {
-  opacity: 1;
+.rail-tab:hover:not(.active) {
+  background: var(--surface-2);
+  color: var(--text-primary);
 }
 
-.app-rail-remove:hover {
-  color: var(--danger);
-  border-color: var(--danger);
+/* ONGLET ACTIF : Fusion parfaite avec var(--canvas) */
+.rail-tab.active {
+  background-color: var(--canvas); /* Utilise la même couleur que le fond d'écran principal */
+  color: var(--accent);
+  font-weight: 600;
+  border: 1px solid var(--border-1);
+  border-right: 1px solid var(--canvas); /* Efface visuellement la bordure du rail */
+  margin-right: -1px; /* Chevauche la bordure droite du conteneur parent */
+  z-index: 2;
 }
 
-.app-rail-add {
-  color: var(--text-muted);
-  flex-shrink: 0;
+/* Indicateur d'accentuation sur le bord gauche de l'onglet actif */
+.rail-tab.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  background-color: var(--accent);
+  border-radius: 0 2px 2px 0;
 }
 
+/* Texte vertical à 90° avec gestion du tronquage (ellipses) */
+.rail-tab-text {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 100%;
+  padding: 4px 0;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  letter-spacing: 0.3px;
+}
+
+/* Popover du menu de sélection de modèle */
 .app-rail-new-menu {
+  position: absolute;
+  left: 54px;
+  top: 6px;
+  background-color: var(--surface-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius);
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  width: 32px;
+  gap: 4px;
+  z-index: 100;
+  min-width: 220px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.app-rail-new-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
 .app-rail-new-option {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: 1px solid var(--border-1);
-  background: var(--surface-2);
-  color: var(--text-muted);
-  font-size: 9px;
-  line-height: 1.1;
-  padding: 2px;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-primary);
+  text-align: left;
+  font-size: 13px;
   cursor: pointer;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  transition: background 0.12s;
 }
 
 .app-rail-new-option:hover {
-  border-color: var(--accent);
+  background: var(--surface-2);
   color: var(--accent);
+}
+
+.app-rail-new-cancel {
+  margin-top: 4px;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--border-1);
+  color: var(--danger);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.app-rail-new-cancel:hover {
+  background: rgba(255, 107, 107, 0.1);
 }
 
 /* Colonne principale : schéma du switch (hauteur fixe) + grille 2x2 (remplit le reste) */
@@ -243,6 +331,18 @@ select {
   gap: 12px;
 }
 
+.config-grid-1 {
+  align-self: center;
+  align-items: center;
+  height: 400px;
+  min-height: 0;
+  width: 500px;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  gap: 20%;
+}
+
 .config-grid .panel {
   min-height: 0;
   overflow-y: auto;
@@ -262,15 +362,89 @@ select {
     height: auto;
     overflow: visible;
   }
+
   .app-body {
     grid-template-columns: 1fr;
   }
-  .app-rail {
-    flex-direction: row;
-  }
+
   .config-grid {
     grid-template-columns: 1fr;
     grid-template-rows: none;
+  }
+
+  /* --- BARRE D'ONGLETS HORIZONTALE --- */
+
+  .app-rail {
+    flex-direction: row;
+    width: 100dvh;
+    height: 44px;
+    max-height: 44px;
+    border-right: none;
+  }
+
+  /* Le bouton "+" passe à gauche de la barre */
+  .rail-header {
+    border-bottom: none;
+    border-right: 1px solid var(--border-1);
+    padding: 0 8px;
+    align-items: center;
+  }
+
+  /* Conteneur avec scroll horizontal si trop d'onglets */
+  .rail-tabs-container {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    min-width: 0; /* Permet le défilement horizontal en Flexbox */
+    padding: 6px 8px 0 8px;
+    gap: 4px;
+  }
+
+  .rail-tabs-container::-webkit-scrollbar {
+    height: 3px;
+    width: auto;
+  }
+
+  /* Style de l'onglet horizontal */
+  .rail-tab {
+    flex: 0 0 130px;
+    max-width: 180px;
+    min-width: 80px;
+    height: 100%;
+    min-height: 0;
+    border-radius: var(--radius) var(--radius) 0 0; /* Coins arrondis en haut */
+  }
+
+  /* Onglet actif : se fond avec le contenu du dessous (var(--canvas)) */
+  .rail-tab.active {
+    border-right: 1px solid var(--border-1);
+    border-bottom: 1px solid var(--canvas);
+    margin-right: 0;
+    margin-bottom: -1px;
+  }
+
+  /* Ligne bleue d'accentuation repositionnée en haut de l'onglet */
+  .rail-tab.active::before {
+    top: 0;
+    bottom: auto;
+    left: 6px;
+    right: 6px;
+    width: auto;
+    height: 3px;
+    border-radius: 0 0 2px 2px;
+  }
+
+  /* Remise du texte à l'horizontale */
+  .rail-tab-text {
+    writing-mode: horizontal-tb;
+    transform: none;
+    padding: 0 8px;
+  }
+
+  /* Repositionnement du menu déroulant de création sous le bouton "+" */
+  .app-rail-new-menu {
+    left: 8px;
+    top: 42px;
   }
 }
 

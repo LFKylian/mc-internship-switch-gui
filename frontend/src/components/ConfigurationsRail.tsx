@@ -1,67 +1,59 @@
-import { useState } from 'react';
 import { useSwitchStore } from '../store/useSwitchStore';
 
-export function ConfigurationsRail() {
+interface Props {
+  creating: boolean;
+  setCreating: (c: boolean) => void;
+}
+
+export function ConfigurationsRail({creating, setCreating}: Props) {
   const configId = useSwitchStore((s) => s.configId);
-  const availableProfiles = useSwitchStore((s) => s.availableProfiles);
   const savedConfigurations = useSwitchStore((s) => s.savedConfigurations);
 
   const hasUnsavedChanges = useSwitchStore((s) => s.hasUnsavedChanges);
   const loadConfiguration = useSwitchStore((s) => s.loadConfiguration);
-  const startNewConfiguration = useSwitchStore((s) => s.startNewConfiguration);
-
-  const [creating, setCreating] = useState(false);
-
-  const profileEntries = Object.entries(availableProfiles);
 
   return (
     <nav className="app-rail" aria-label="Configurations sauvegardées">
-      <div className="app-rail-list">
+      {/* En-tête fixe : le bouton d'ajout reste toujours accessible en haut */}
+      <div className="rail-header">
+        {creating ? ( 
+          <></>
+        ) : (
+          <button
+            type="button"
+            className="rail-tab-add"
+            title="Nouvelle configuration"
+            onClick={() => setCreating(true)}
+          >
+            +
+          </button>
+        )}
+      </div>
+
+      {/* Zone défilante des onglets */}
+      <div className="rail-tabs-container">
         {savedConfigurations.map((cfg) => (
           <button
             key={cfg.id}
-            className={`app-rail-item${configId === cfg.id ? ' active' : ''}`}
+            type="button"
+            className={`rail-tab${configId === cfg.id ? ' active' : ''}`}
             title={`${cfg.name} — ${cfg.profile_id}`}
             onClick={() => {
-              if (hasUnsavedChanges() && !window.confirm(
-                'Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter cette configuration ?'
-              )) {
+              if (
+                hasUnsavedChanges() &&
+                !window.confirm(
+                  'Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter cette configuration ?'
+                )
+              ) {
                 return;
               }
               cfg.id !== undefined && void loadConfiguration(cfg.id);
             }}
           >
-            <span className="app-rail-initial">{cfg.name.charAt(0).toUpperCase()}</span>
+            <span className="rail-tab-text">{cfg.name}</span>
           </button>
         ))}
       </div>
-
-      {creating ? (
-        <div className="app-rail-new-menu">
-          {profileEntries.map(([id, model]) => (
-            <button
-              key={id}
-              className="app-rail-new-option"
-              title={model}
-              onClick={() => {
-                if (hasUnsavedChanges() && !window.confirm(
-                  'Vous avez des modifications non sauvegardées. Voulez-vous vraiment créer une nouvelle configuration ?'
-                )) {
-                  return;
-                }
-                void startNewConfiguration(id);
-                setCreating(false);
-              }}
-            >
-              {model}
-            </button>
-          ))}
-        </div>
-      ) : (
-        <button className="app-rail-item app-rail-add" title="Nouvelle configuration" onClick={() => setCreating(true)}>
-          +
-        </button>
-      )}
     </nav>
   );
 }

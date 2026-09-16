@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSwitchStore } from './store/useSwitchStore';
 import { SwitchPanel } from './components/SwitchPanel';
 import { VlanPanel } from './components/VlanPanel';
@@ -9,15 +9,29 @@ import { SaveControl } from './components/SaveControl';
 import { ConfigurationsRail } from './components/ConfigurationsRail';
 import { UsersPanel } from './components/UsersPanel';
 import { GroupsPanel } from './components/GroupsPanel';
+import { CreateConfigModal } from './components/CreateConfigModal';
 
 export default function App() {
   const init = useSwitchStore((s) => s.init);
   const status = useSwitchStore((s) => s.status);
   const profile = useSwitchStore((s) => s.profile);
+  const configId = useSwitchStore((s) => s.configId)
+  const availableProfiles = useSwitchStore((s) => s.availableProfiles);
+  const savedConfigurations = useSwitchStore((s) => s.savedConfigurations)
+
+  const startNewConfiguration = useSwitchStore((s) => s.startNewConfiguration);
+  const saveCurrentConfiguration = useSwitchStore((s) => s.saveCurrentConfiguration);
+
+  const [error, setError] = useState('')
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     void init();
   }, [init]);
+
+  function isConfigSelected(): boolean {
+    return savedConfigurations.findIndex((s) => s.id && s.id === configId) !== -1
+  }
 
   return (
     <div className="app-shell">
@@ -31,7 +45,7 @@ export default function App() {
         </div>
         <div className="header-actions">
           <ProfileBadge />
-          <SaveControl />
+          <SaveControl creating={creating} />
         </div>
       </header>
 
@@ -40,21 +54,33 @@ export default function App() {
 
       {profile && (
         <div className="app-body">
-          <ConfigurationsRail />
+          <ConfigurationsRail creating={creating} setCreating={setCreating} />
 
-          <main className="app-left">
-            <SwitchPanel />
-            <div className="config-grid">
-              <VlanPanel />
-              <PortInspector />
-              <UsersPanel />
-              <GroupsPanel />
-            </div>
+          <main className="app-left" aria-disabled={true}>
+            {creating ? (
+              <div className="config-grid-1">
+                <CreateConfigModal availableProfiles={availableProfiles} onSubmit={async (id: string, name: string) => { await startNewConfiguration(id); const result = await saveCurrentConfiguration(name); if (result.ok) { setCreating(false) } else { setError(result.error ?? '') } }} onClose={() => setCreating(false)} />
+                {error && <span className="field-error">{error}</span>}
+              </div>
+            ) : isConfigSelected() ? (
+              <>
+                <SwitchPanel />
+                <div className="config-grid">
+                  <VlanPanel />
+                  <PortInspector />
+                  <UsersPanel />
+                  <GroupsPanel />
+
+                </div>
+              </>
+            ) : (
+              <></>
+            )}
           </main>
 
-          <aside className="app-right">
+          {!creating && isConfigSelected() && <aside className="app-right">
             <CliTerminal />
-          </aside>
+          </aside>}
         </div>
       )}
     </div>

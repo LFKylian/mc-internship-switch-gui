@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useSwitchStore } from '../store/useSwitchStore';
 
-export function SaveControl() {
+interface Props {
+  creating: boolean;
+}
+
+export function SaveControl({creating}: Props) {
   const configId = useSwitchStore((s) => s.configId);
   const configName = useSwitchStore((s) => s.configName);
   const saveStatus = useSwitchStore((s) => s.saveStatus);
@@ -23,56 +27,56 @@ export function SaveControl() {
     if (result.ok) setEditingName(false);
   };
 
-  if (editingName || isNew) {
+  if (!isNew && !creating) {
+    if (editingName) {
+      return (
+        <form className="save-control" onSubmit={submit}>
+          <input
+            type="text"
+            className="input"
+            placeholder="Nom de la configuration"
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
+            maxLength={100}
+            autoFocus={editingName}
+          />
+          <button type="submit" className="btn btn-primary" disabled={saveStatus.saving}>
+            {saveStatus.saving ? 'Enregistrement…' : 'Enregistrer'}
+          </button>
+        </form>
+      );
+    }
+
     return (
-      <form className="save-control" onSubmit={submit}>
-        <input
-          type="text"
-          className="input"
-          placeholder="Nom de la configuration"
-          value={draftName}
-          onChange={(e) => setDraftName(e.target.value)}
-          maxLength={100}
-          autoFocus={editingName}
-        />
-        <button type="submit" className="btn btn-primary" disabled={saveStatus.saving}>
-          {saveStatus.saving ? 'Enregistrement…' : 'Enregistrer'}
+      <div className="save-control">
+        <button
+          className="btn btn-primary"
+          disabled={saveStatus.saving}
+          onClick={() => void saveCurrentConfiguration(configName)}
+        >
+          {saveStatus.saving ? 'Enregistrement…' : `Enregistrer « ${configName} »`}
         </button>
-        {!isNew && (
-          <button type="button" className="btn btn-ghost" onClick={() => setEditingName(false)}>
-            Annuler
+        <button type="button" className="btn btn-ghost" onClick={() => setEditingName(true)}>
+          Renommer
+        </button>
+        {configId !== null && (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => {
+              if (window.confirm(`Voulez-vous vraiment supprimer la configuration « ${configName} » ?`)) {
+                void deleteSavedConfiguration(configId);
+              }
+            }}
+          >
+            Supprimer
           </button>
         )}
-      </form>
+        {saveStatus.error && <p className="field-error">{saveStatus.error}</p>}
+      </div>
     );
-  }
 
-  return (
-    <div className="save-control">
-      <button
-        className="btn btn-primary"
-        disabled={saveStatus.saving}
-        onClick={() => void saveCurrentConfiguration(configName)}
-      >
-        {saveStatus.saving ? 'Enregistrement…' : `Enregistrer « ${configName} »`}
-      </button>
-      <button type="button" className="btn btn-ghost" onClick={() => setEditingName(true)}>
-        Renommer
-      </button>
-      {configId !== null && (
-        <button
-          type="button"
-          className="btn btn-ghost"
-          onClick={() => {
-            if (window.confirm(`Voulez-vous vraiment supprimer la configuration « ${configName} » ?`)) {
-              void deleteSavedConfiguration(configId);
-            }
-          }}
-        >
-          Supprimer
-        </button>
-      )}
-      {saveStatus.error && <p className="field-error">{saveStatus.error}</p>}
-    </div>
-  );
+  } else {
+    return <></>;
+  }
 }
