@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
-import { useSwitchStore } from './store/useSwitchStore';
-import { SwitchPanel } from './components/SwitchPanel';
 import { VlanPanel } from './components/VlanPanel';
-import { PortInspector } from './components/PortInspector';
-import { CliTerminal } from './components/CliTerminal';
-import { ProfileBadge } from './components/ProfileBadge';
-import { SaveControl } from './components/SaveControl';
-import { ConfigurationsRail } from './components/ConfigurationsRail';
 import { UsersPanel } from './components/UsersPanel';
+import { SwitchPanel } from './components/SwitchPanel';
+import { CliTerminal } from './components/CliTerminal';
 import { GroupsPanel } from './components/GroupsPanel';
+import { SaveControl } from './components/SaveControl';
+import { useSwitchStore } from './store/useSwitchStore';
+import { ProfileBadge } from './components/ProfileBadge';
+import { PortInspector } from './components/PortInspector';
+import { UndoRedoControls } from './components/UndoRedoControls';
 import { CreateConfigModal } from './components/CreateConfigModal';
+import { ConfigurationsRail } from './components/ConfigurationsRail';
 
 export default function App() {
   const init = useSwitchStore((s) => s.init);
@@ -45,6 +46,7 @@ export default function App() {
         </div>
         <div className="header-actions">
           <ProfileBadge />
+          <UndoRedoControls />
           <SaveControl creating={creating} />
         </div>
       </header>

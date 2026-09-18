@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { temporal } from 'zundo';
+import isDeepEqual from 'fast-deep-equal';
 import type {
   BaseDeviceInfo,
   BaseGetDeviceInfo,
@@ -115,6 +116,8 @@ interface SwitchStoreState {
   getConfiguration: (modal: string, gettingDeviceInfo: BaseGetDeviceInfo) => Promise<boolean>;
   setIsGetModalOpen: (open: boolean) => void;
   loadParsedConfiguration: (state: SwitchState) => void;
+
+  refreshCliAfterZundo: () => Promise<void>;
 }
 
 function buildSwitchState(state: SwitchStoreState): SwitchState {
@@ -128,6 +131,7 @@ function buildSwitchState(state: SwitchStoreState): SwitchState {
 }
 
 let cliRequestSeq = 0;
+let canRefreshCli: boolean = false;
 
 async function refreshCli(get: () => SwitchStoreState, set: (partial: Partial<SwitchStoreState>) => void) {
   const seq = ++cliRequestSeq;
@@ -165,6 +169,7 @@ async function loadProfileData(
       configId: null,
       configName: '',
       status: { loading: false, error: null },
+      baseState: null,
     });
     await refreshCli(get, set);
   } catch (err) {
@@ -185,8 +190,8 @@ function validateGroupAndPassword(
   return { ok: true };
 }
 
-export const useSwitchStore = create<SwitchStoreState>(
-  // temporal(
+export const useSwitchStore = create<SwitchStoreState>()(
+  temporal(
     (set, get) => ({
       profileId: DEFAULT_PROFILE_ID,
       availableProfiles: {},
@@ -221,6 +226,7 @@ export const useSwitchStore = create<SwitchStoreState>(
         }
         await loadProfileData(get().profileId, set, get);
         void get().loadConfigurationList();
+        useSwitchStore.temporal.getState().clear();
       },
 
       // Point d'entrée unique pour choisir un profil : repart toujours d'une
@@ -231,6 +237,7 @@ export const useSwitchStore = create<SwitchStoreState>(
         await loadProfileData(profileId, set, get);
         // Mise à jour du snapshot après chargement d'une nouvelle configuration vierge
         set({ savedSnapshot: JSON.stringify(buildSwitchState(get())) });
+        useSwitchStore.temporal.getState().clear();
       },
 
       loadConfigurationList: async () => {
@@ -647,19 +654,35 @@ export const useSwitchStore = create<SwitchStoreState>(
         // Le CLI généré serait pour atteindre cet état depuis un état vide
         // Or ici on a déjà cet état, donc pas besoin de CLI
       },
+
+      refreshCliAfterZundo: async () => {
+        if (canRefreshCli) {
+          await refreshCli(get, set);
+          canRefreshCli = false;
+        }
+      },
     }),
-  //   {
-  //     limit: 30, // Conserve jusqu'à 30 états dans l'historique
-  //     partialize: (state) => ({
-  //       // Seules ces clés déclencheront la création d'un point d'annulation
-  //       ports: state.ports,
-  //       vlans: state.vlans,
-  //       users: state.users,
-  //       userGroups: state.userGroups,
-  //       baseState: state.base_state,
-  //     }),
-  //   }
-  // )
+    {
+      limit: 30, // Conserve jusqu'à 30 états dans l'historique
+      partialize: (state) => ({
+        // Seules ces clés déclencheront la création d'un point d'annulation
+        ports: state.ports,
+        vlans: state.vlans,
+        users: state.users,
+        userGroups: state.userGroups,
+      }),
+      equality: isDeepEqual,
+
+      // Intercepter les modifications pour ajouter une action custom
+      handleSet: (handleSet) => (state) => {
+        // 1. Action personnalisée à exécuter lors d'un undo/redo
+        canRefreshCli = true;
+
+        // 2. Appeler handleSet pour continuer le comportement normal de zundo
+        handleSet(state);
+      },
+    },
+  )
 );
 
 export { vlanColor };
