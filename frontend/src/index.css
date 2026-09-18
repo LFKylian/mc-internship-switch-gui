@@ -1094,4 +1094,35 @@ select {
   flex: 1;
 }
 
+/* Entête des onglets internes aux panneaux (Users/Groups) */
 
+.panel-tab-header {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-1);
+  margin-bottom: 12px;
+  padding-bottom: 4px;
+}
+
+.panel-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.panel-tab-btn:hover {
+  color: var(--text-primary);
+  background: var(--surface-2);
+}
+
+.panel-tab-btn.active {
+  color: var(--accent);
+  background: var(--surface-2);
+  border-bottom: 2px solid var(--accent);
+}

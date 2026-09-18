@@ -11,6 +11,7 @@ import { PortInspector } from './components/PortInspector';
 import { UndoRedoControls } from './components/UndoRedoControls';
 import { CreateConfigModal } from './components/CreateConfigModal';
 import { ConfigurationsRail } from './components/ConfigurationsRail';
+import { UserGroupTabsPanel } from './components/UserGroupTabsPanel';
 
 export default function App() {
   const init = useSwitchStore((s) => s.init);
@@ -113,8 +114,9 @@ export default function App() {
                 <div className="config-grid">
                   <VlanPanel />
                   <PortInspector />
-                  <UsersPanel />
-                  <GroupsPanel />
+                  <UserGroupTabsPanel />
+                  {/* <UsersPanel />
+                  <GroupsPanel /> */}
                 </div>
               </>
             ) : (
